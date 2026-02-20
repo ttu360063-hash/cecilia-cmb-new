@@ -1,0 +1,35 @@
+{
+  "name": "payment_methods",
+  "type": "object",
+  "required": [
+    "name",
+    "value",
+    "active"
+  ],
+  "properties": {
+    "name": {
+      "bsonType": "string",
+      "description": "Nome da forma de pagamento exibido para o usuário"
+    },
+    "value": {
+      "bsonType": "string",
+      "description": "Valor interno usado no sistema (slug)"
+    },
+    "active": {
+      "bsonType": "bool",
+      "description": "Se a forma de pagamento está ativa"
+    },
+    "order": {
+      "bsonType": "int",
+      "description": "Ordem de exibição"
+    },
+    "createdAt": {
+      "bsonType": "string",
+      "description": "Data de criação no formato ISO"
+    },
+    "updatedAt": {
+      "bsonType": "string",
+      "description": "Data de atualização no formato ISO"
+    }
+  }
+}

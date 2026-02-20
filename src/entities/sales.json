@@ -1,0 +1,121 @@
+{
+  "name": "sales",
+  "type": "object",
+  "required": [
+    "customer",
+    "items",
+    "total",
+    "date",
+    "status",
+    "active",
+    "creator",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "saleNumber": {
+      "bsonType": "int",
+      "description": "Número sequencial único da venda (não muda se outras vendas forem excluídas)"
+    },
+    "customer": {
+      "bsonType": "object",
+      "description": "Informações do cliente",
+      "properties": {
+        "name": {
+          "bsonType": "string",
+          "description": "Nome completo do cliente"
+        },
+        "phone": {
+          "bsonType": "string",
+          "description": "Telefone de contato"
+        },
+        "email": {
+          "bsonType": "string",
+          "description": "Email do cliente (opcional)"
+        },
+        "address": {
+          "bsonType": "string",
+          "description": "Endereço completo (opcional)"
+        }
+      }
+    },
+    "items": {
+      "bsonType": "array",
+      "description": "Lista de produtos vendidos",
+      "items": {
+        "bsonType": "object",
+        "properties": {
+          "productId": {
+            "bsonType": "string",
+            "description": "ID do produto"
+          },
+          "productName": {
+            "bsonType": "string",
+            "description": "Nome do produto"
+          },
+          "quantity": {
+            "bsonType": "int",
+            "description": "Quantidade vendida"
+          },
+          "unitPrice": {
+            "bsonType": "double",
+            "description": "Preço unitário"
+          },
+          "total": {
+            "bsonType": "double",
+            "description": "Total do item (quantidade × preço unitário)"
+          }
+        }
+      }
+    },
+    "total": {
+      "bsonType": "double",
+      "description": "Valor total da venda"
+    },
+    "date": {
+      "bsonType": "string",
+      "title": "datetime",
+      "description": "Data da venda (ISO 8601 format)"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "Status da venda",
+      "enum": [
+        "Pendente",
+        "Em Andamento",
+        "Concluída",
+        "Cancelada"
+      ]
+    },
+    "observations": {
+      "bsonType": "string",
+      "description": "Observações sobre a venda (opcional)"
+    },
+    "paymentMethod": {
+      "bsonType": "string",
+      "description": "Forma de pagamento utilizada (opcional)"
+    },
+    "active": {
+      "bsonType": "bool",
+      "description": "Indica se a venda está ativa (não excluída)"
+    },
+    "creator": {
+      "bsonType": "string",
+      "description": "Usuário que criou o registro"
+    },
+    "createdAt": {
+      "bsonType": "string",
+      "title": "datetime",
+      "description": "Data de criação do registro (ISO 8601 format)"
+    },
+    "updatedAt": {
+      "bsonType": "string",
+      "title": "datetime",
+      "description": "Data da última atualização (ISO 8601 format)"
+    },
+    "creatorEmail": {
+      "bsonType": "string",
+      "description": "Creator user email"
+    }
+  }
+}

@@ -1,0 +1,90 @@
+
+{
+  "name": "customers",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "title": "Nome Completo"
+    },
+    {
+      "name": "cpfCnpj",
+      "type": "string",
+      "required": true,
+      "title": "CPF/CNPJ"
+    },
+    {
+      "name": "phone",
+      "type": "string",
+      "required": true,
+      "title": "Telefone"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "required": false,
+      "title": "Email"
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "required": true,
+      "title": "Endereço"
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "required": true,
+      "title": "Cidade"
+    },
+    {
+      "name": "state",
+      "type": "string",
+      "required": true,
+      "title": "Estado"
+    },
+    {
+      "name": "zipCode",
+      "type": "string",
+      "required": true,
+      "title": "CEP"
+    },
+    {
+      "name": "birthDate",
+      "type": "string",
+      "required": false,
+      "title": "Data de Nascimento"
+    },
+    {
+      "name": "customerType",
+      "type": "string",
+      "required": true,
+      "title": "Tipo de Cliente"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "required": true,
+      "title": "Ativo"
+    },
+    {
+      "name": "observations",
+      "type": "string",
+      "required": false,
+      "title": "Observações"
+    },
+    {
+      "name": "createdAt",
+      "type": "string",
+      "required": true,
+      "title": "datetime"
+    },
+    {
+      "name": "updatedAt",
+      "type": "string",
+      "required": true,
+      "title": "datetime"
+    }
+  ]
+}

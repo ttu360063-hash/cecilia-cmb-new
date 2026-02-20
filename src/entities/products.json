@@ -1,0 +1,99 @@
+
+[
+  {
+    "id": "1",
+    "code": "PRD001",
+    "name": "Jogo de Cama Casal Premium",
+    "description": "Jogo de cama casal 100% algodão, com lençol, fronha e edredom. Qualidade premium com acabamento refinado.",
+    "price": 159.90,
+    "stock": 25,
+    "category": "Cama",
+    "active": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": "2",
+    "code": "PRD002",
+    "name": "Toalha de Banho Felpuda",
+    "description": "Toalha de banho extra macia, 100% algodão felpudo. Absorção superior e secagem rápida.",
+    "price": 45.50,
+    "stock": 40,
+    "category": "Banho",
+    "active": true,
+    "createdAt": "2024-01-15T11:00:00Z",
+    "updatedAt": "2024-01-15T11:00:00Z"
+  },
+  {
+    "id": "3",
+    "code": "PRD003",
+    "name": "Jogo Americano Decorativo",
+    "description": "Conjunto com 4 jogos americanos em tecido impermeável. Perfeito para decorar a mesa de jantar.",
+    "price": 32.90,
+    "stock": 15,
+    "category": "Mesa",
+    "active": true,
+    "createdAt": "2024-01-15T14:20:00Z",
+    "updatedAt": "2024-01-15T14:20:00Z"
+  },
+  {
+    "id": "4",
+    "code": "PRD004",
+    "name": "Almofada Decorativa Bordada",
+    "description": "Almofada decorativa com bordado artesanal. Ideal para sofás e camas, trazendo charme ao ambiente.",
+    "price": 28.75,
+    "stock": 30,
+    "category": "Decoração",
+    "active": true,
+    "createdAt": "2024-01-15T15:45:00Z",
+    "updatedAt": "2024-01-15T15:45:00Z"
+  },
+  {
+    "id": "5",
+    "code": "PRD005",
+    "name": "Cortina Blackout Elegante",
+    "description": "Cortina blackout que bloqueia 99% da luz. Tecido de alta qualidade com varão incluso.",
+    "price": 89.90,
+    "stock": 8,
+    "category": "Decoração",
+    "active": true,
+    "createdAt": "2024-01-16T09:15:00Z",
+    "updatedAt": "2024-01-16T09:15:00Z"
+  },
+  {
+    "id": "6",
+    "code": "PRD006",
+    "name": "Tapete de Banheiro Antiderrapante",
+    "description": "Tapete de banheiro com base antiderrapante. Material absorvente e de fácil limpeza.",
+    "price": 24.90,
+    "stock": 22,
+    "category": "Banho",
+    "active": true,
+    "createdAt": "2024-01-16T10:30:00Z",
+    "updatedAt": "2024-01-16T10:30:00Z"
+  },
+  {
+    "id": "7",
+    "code": "PRD007",
+    "name": "Protetor de Colchão Impermeável",
+    "description": "Protetor de colchão casal impermeável. Protege contra líquidos e ácaros, respirável e confortável.",
+    "price": 67.50,
+    "stock": 18,
+    "category": "Cama",
+    "active": true,
+    "createdAt": "2024-01-16T13:45:00Z",
+    "updatedAt": "2024-01-16T13:45:00Z"
+  },
+  {
+    "id": "8",
+    "code": "PRD008",
+    "name": "Toalha de Mesa Estampada",
+    "description": "Toalha de mesa retangular com estampa floral. Material resistente e de fácil manutenção.",
+    "price": 54.90,
+    "stock": 12,
+    "category": "Mesa",
+    "active": true,
+    "createdAt": "2024-01-17T08:20:00Z",
+    "updatedAt": "2024-01-17T08:20:00Z"
+  }
+]

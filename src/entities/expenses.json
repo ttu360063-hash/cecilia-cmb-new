@@ -1,0 +1,42 @@
+
+{
+  "name": "expenses",
+  "fields": [
+    {
+      "name": "description",
+      "type": "string",
+      "title": "Descrição",
+      "required": true
+    },
+    {
+      "name": "amount",
+      "type": "number",
+      "title": "Valor",
+      "required": true
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "title": "Categoria",
+      "required": true,
+      "enum": ["fornecedores", "funcionarios", "impostos", "aluguel", "energia", "agua", "telefone", "transporte", "marketing", "equipamentos", "manutencao", "outros"]
+    },
+    {
+      "name": "date",
+      "type": "string",
+      "title": "datetime",
+      "required": true
+    },
+    {
+      "name": "paymentMethod",
+      "type": "string",
+      "title": "Forma de Pagamento",
+      "enum": ["dinheiro", "pix", "cartao_debito", "cartao_credito", "transferencia", "boleto"]
+    },
+    {
+      "name": "notes",
+      "type": "string",
+      "title": "Observações"
+    }
+  ]
+}
