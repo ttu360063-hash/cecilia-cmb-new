@@ -1,7 +1,7 @@
-
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {Lock, Eye, EyeOff} from 'lucide-react'
+import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
+import { isAdminAuthenticated, setAdminAuthenticated } from '../lib/auth'
 
 const AdminLogin: React.FC = () => {
   const [password, setPassword] = useState('')
@@ -10,76 +10,79 @@ const AdminLogin: React.FC = () => {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
+  useEffect(() => {
+    if (isAdminAuthenticated()) {
+      navigate('/admin', { replace: true })
+    }
+  }, [navigate])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    // Simular verificação (senha não deve ser visível no código em produção)
     if (password === 'CECILIACMB') {
-      // Redirecionar para o dashboard administrativo
-      navigate('/admin')
+      setAdminAuthenticated(true)
+      navigate('/admin', { replace: true })
     } else {
-      setError('Senha incorreta!')
+      setError('Senha incorreta.')
     }
-    
+
     setLoading(false)
     setPassword('')
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e2e8f0_0%,_#f8fafc_45%,_#ecfeff_100%)] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-[0_20px_60px_-28px_rgba(2,6,23,0.45)] p-8">
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Lock size={40} className="text-blue-600" />
+          <div className="mx-auto mb-5 grid h-20 w-20 place-content-center rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-800 text-white shadow-lg">
+            <ShieldCheck size={34} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Área Administrativa</h1>
-          <p className="text-gray-600 mt-2">Acesso restrito para administradores</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Area Administrativa</h1>
+          <p className="text-slate-600 mt-2">Acesso restrito para administradores</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Senha de Acesso
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Senha de acesso</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
                 placeholder="Digite a senha administrativa"
                 required
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
-            {error && (
-              <p className="mt-2 text-sm text-red-600">{error}</p>
-            )}
+            {error && <p className="mt-2 text-sm font-medium text-rose-600">{error}</p>}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Verificando...' : 'Acessar Área Restrita'}
+            <Lock size={18} />
+            {loading ? 'Verificando...' : 'Acessar area restrita'}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <button 
+        <div className="mt-7 text-center">
+          <button
             onClick={() => navigate('/vendas')}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-sm font-semibold text-cyan-700 transition hover:text-cyan-900"
           >
-            ← Voltar para área pública
+            Voltar para area publica
           </button>
         </div>
       </div>

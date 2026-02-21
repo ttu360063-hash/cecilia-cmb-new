@@ -1,4 +1,41 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --app-bg: #f8fafc;
+    --text-main: #0f172a;
+    --text-soft: #475569;
+    --line: #e2e8f0;
+    --card-bg: rgba(255, 255, 255, 0.9);
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--app-bg);
+    color: var(--text-main);
+    font-family: 'Manrope', 'Noto Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  .app-panel {
+    @apply rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_18px_55px_-36px_rgba(2,6,23,0.55)];
+  }
+}
