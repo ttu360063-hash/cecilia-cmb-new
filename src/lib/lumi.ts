@@ -1,4 +1,6 @@
 
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
 type EntityName = 'products' | 'sales' | 'customers' | 'payment_methods' | 'expenses'
 type EntityRecord = Record<string, any>
 
@@ -24,23 +26,50 @@ type LumiLikeClient = {
   entities: Record<string, EntityApi>
 }
 
-const STORAGE_PREFIX = 'cecilia_local_db_v1'
-const MEMORY_DB: Partial<Record<EntityName, EntityRecord[]>> = {}
-
-const STORAGE_KEYS: Record<EntityName, string> = {
-  products: `${STORAGE_PREFIX}_products`,
-  sales: `${STORAGE_PREFIX}_sales`,
-  customers: `${STORAGE_PREFIX}_customers`,
-  payment_methods: `${STORAGE_PREFIX}_payment_methods`,
-  expenses: `${STORAGE_PREFIX}_expenses`,
+type DbRow = {
+  id: string
+  data: EntityRecord
+  created_at: string | null
+  updated_at: string | null
 }
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+const supabase: SupabaseClient | null =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: false,
+        },
+      })
+    : null
 
 const nowIso = () => new Date().toISOString()
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
-const hasLocalStorage = (): boolean =>
-  typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+const assertSupabase = (): SupabaseClient => {
+  if (!supabase) {
+    throw new Error(
+      'Supabase nao configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
+    )
+  }
+  return supabase
+}
+
+const toNumber = (value: any, fallback: number = 0): number => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : fallback
+}
+
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  const random = Math.random().toString(36).slice(2, 10)
+  return `${Date.now()}_${random}`
+}
 
 const normalizeProduct = (record: EntityRecord): EntityRecord => {
   const unitPrice = toNumber(record.unitPrice ?? record.price, 0)
@@ -99,85 +128,6 @@ const normalizeByEntity = (entity: EntityName, record: EntityRecord): EntityReco
     default:
       return record
   }
-}
-
-const ensureId = (record: EntityRecord): EntityRecord => {
-  const existingId = String(record._id ?? record.id ?? '').trim()
-  const id = existingId || generateId()
-  return {
-    ...record,
-    _id: id,
-    id,
-  }
-}
-
-const generateId = (): string => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  const random = Math.random().toString(36).slice(2, 10)
-  return `${Date.now()}_${random}`
-}
-
-const toNumber = (value: any, fallback: number = 0): number => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : fallback
-}
-
-const getSeedData = (entity: EntityName): EntityRecord[] => {
-  if (entity !== 'payment_methods') {
-    return []
-  }
-
-  const createdAt = nowIso()
-  return [
-    { _id: 'pm_dinheiro', id: 'pm_dinheiro', name: 'Dinheiro', value: 'dinheiro', active: true, order: 1, createdAt, updatedAt: createdAt },
-    { _id: 'pm_pix', id: 'pm_pix', name: 'PIX', value: 'pix', active: true, order: 2, createdAt, updatedAt: createdAt },
-    { _id: 'pm_cartao_debito', id: 'pm_cartao_debito', name: 'Cartao Debito', value: 'cartao_debito', active: true, order: 3, createdAt, updatedAt: createdAt },
-    { _id: 'pm_cartao_credito', id: 'pm_cartao_credito', name: 'Cartao Credito', value: 'cartao_credito', active: true, order: 4, createdAt, updatedAt: createdAt },
-    { _id: 'pm_transferencia', id: 'pm_transferencia', name: 'Transferencia', value: 'transferencia', active: true, order: 5, createdAt, updatedAt: createdAt },
-    { _id: 'pm_boleto', id: 'pm_boleto', name: 'Boleto', value: 'boleto', active: true, order: 6, createdAt, updatedAt: createdAt },
-  ]
-}
-
-const readEntity = (entity: EntityName): EntityRecord[] => {
-  if (!hasLocalStorage()) {
-    if (!MEMORY_DB[entity]) {
-      MEMORY_DB[entity] = getSeedData(entity)
-    }
-    return clone(MEMORY_DB[entity] || [])
-  }
-
-  const key = STORAGE_KEYS[entity]
-  const raw = window.localStorage.getItem(key)
-  if (!raw) {
-    const seed = getSeedData(entity)
-    writeEntity(entity, seed)
-    return clone(seed)
-  }
-
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) {
-      return clone(parsed)
-    }
-  } catch (error) {
-    console.warn(`Falha ao ler dados locais de ${entity}:`, error)
-  }
-
-  const seed = getSeedData(entity)
-  writeEntity(entity, seed)
-  return clone(seed)
-}
-
-const writeEntity = (entity: EntityName, records: EntityRecord[]): void => {
-  if (!hasLocalStorage()) {
-    MEMORY_DB[entity] = clone(records)
-    return
-  }
-
-  const key = STORAGE_KEYS[entity]
-  window.localStorage.setItem(key, JSON.stringify(records))
 }
 
 const compareValues = (a: any, b: any): number => {
@@ -239,11 +189,133 @@ const applyLimit = (records: EntityRecord[], limit?: number): EntityRecord[] => 
   return records.slice(0, limit)
 }
 
+const toApiRecord = (entity: EntityName, row: DbRow): EntityRecord =>
+  normalizeByEntity(entity, {
+    ...(row.data || {}),
+    _id: row.id,
+    id: row.id,
+    createdAt: row.data?.createdAt ?? row.created_at ?? nowIso(),
+    updatedAt: row.data?.updatedAt ?? row.updated_at ?? nowIso(),
+  })
+
+const toDbPayload = (record: EntityRecord): EntityRecord => {
+  const payload = { ...record }
+  delete payload._id
+  delete payload.id
+  return payload
+}
+
+const getPaymentMethodSeed = (): EntityRecord[] => {
+  const timestamp = nowIso()
+  return [
+    {
+      _id: 'pm_dinheiro',
+      id: 'pm_dinheiro',
+      name: 'Dinheiro',
+      value: 'dinheiro',
+      active: true,
+      order: 1,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    {
+      _id: 'pm_pix',
+      id: 'pm_pix',
+      name: 'PIX',
+      value: 'pix',
+      active: true,
+      order: 2,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    {
+      _id: 'pm_cartao_debito',
+      id: 'pm_cartao_debito',
+      name: 'Cartao Debito',
+      value: 'cartao_debito',
+      active: true,
+      order: 3,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    {
+      _id: 'pm_cartao_credito',
+      id: 'pm_cartao_credito',
+      name: 'Cartao Credito',
+      value: 'cartao_credito',
+      active: true,
+      order: 4,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    {
+      _id: 'pm_transferencia',
+      id: 'pm_transferencia',
+      name: 'Transferencia',
+      value: 'transferencia',
+      active: true,
+      order: 5,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    {
+      _id: 'pm_boleto',
+      id: 'pm_boleto',
+      name: 'Boleto',
+      value: 'boleto',
+      active: true,
+      order: 6,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+  ]
+}
+
+const ensurePaymentMethodSeed = async (client: SupabaseClient) => {
+  const { count, error } = await client
+    .from('payment_methods')
+    .select('id', { count: 'exact', head: true })
+
+  if (error) {
+    throw error
+  }
+  if ((count || 0) > 0) {
+    return
+  }
+
+  const seedRows = getPaymentMethodSeed().map((item) => ({
+    id: item._id,
+    data: toDbPayload(item),
+    created_at: item.createdAt,
+    updated_at: item.updatedAt,
+  }))
+
+  const { error: insertError } = await client
+    .from('payment_methods')
+    .upsert(seedRows, { onConflict: 'id' })
+
+  if (insertError) {
+    throw insertError
+  }
+}
+
 const createEntityApi = (entity: EntityName): EntityApi => ({
   list: async (options: ListOptions = {}) => {
-    const rawRecords = readEntity(entity)
-      .map((record) => ensureId(normalizeByEntity(entity, record)))
+    const client = assertSupabase()
 
+    if (entity === 'payment_methods') {
+      await ensurePaymentMethodSeed(client)
+    }
+
+    const { data, error } = await client
+      .from(entity)
+      .select('id,data,created_at,updated_at')
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    const rawRecords = ((data || []) as DbRow[]).map((row) => toApiRecord(entity, row))
     const filtered = applyFilter(rawRecords, options.filter)
     const sorted = applySort(filtered, options.sort)
     const limited = applyLimit(sorted, options.limit)
@@ -255,65 +327,91 @@ const createEntityApi = (entity: EntityName): EntityApi => ({
   },
 
   create: async (data: Partial<EntityRecord>) => {
-    const records = readEntity(entity)
+    const client = assertSupabase()
+    const id = String(data._id ?? data.id ?? '').trim() || generateId()
     const timestamp = nowIso()
-    const createdRecord = ensureId(
-      normalizeByEntity(entity, {
-        active: true,
-        createdAt: data.createdAt ?? timestamp,
-        updatedAt: data.updatedAt ?? timestamp,
-        ...data,
-      }),
-    )
 
-    records.push(createdRecord)
-    writeEntity(entity, records)
-    return clone(createdRecord)
+    const normalized = normalizeByEntity(entity, {
+      active: data.active ?? true,
+      createdAt: data.createdAt ?? timestamp,
+      updatedAt: data.updatedAt ?? timestamp,
+      ...data,
+      _id: id,
+      id,
+    })
+
+    const row = {
+      id,
+      data: toDbPayload(normalized),
+      created_at: normalized.createdAt ?? timestamp,
+      updated_at: normalized.updatedAt ?? timestamp,
+    }
+
+    const { error } = await client.from(entity).upsert(row, { onConflict: 'id' })
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    return clone(normalized)
   },
 
   update: async (id: string, updates: Partial<EntityRecord>) => {
+    const client = assertSupabase()
     const targetId = String(id || '').trim()
     if (!targetId) {
       throw new Error('ID invalido para atualizacao')
     }
 
-    const records = readEntity(entity)
-    const index = records.findIndex((record) => String(record._id ?? record.id) === targetId)
-    if (index === -1) {
+    const { data: currentRow, error: currentError } = await client
+      .from(entity)
+      .select('id,data,created_at,updated_at')
+      .eq('id', targetId)
+      .maybeSingle()
+
+    if (currentError) {
+      throw new Error(currentError.message)
+    }
+    if (!currentRow) {
       throw new Error(`Registro nao encontrado para ID ${targetId}`)
     }
 
-    const current = ensureId(normalizeByEntity(entity, records[index]))
-    const updated = ensureId(
-      normalizeByEntity(entity, {
-        ...current,
-        ...updates,
-        _id: current._id,
-        id: current.id,
-        createdAt: current.createdAt ?? updates.createdAt ?? nowIso(),
-        updatedAt: updates.updatedAt ?? nowIso(),
-      }),
-    )
+    const current = toApiRecord(entity, currentRow as DbRow)
+    const updated = normalizeByEntity(entity, {
+      ...current,
+      ...updates,
+      _id: targetId,
+      id: targetId,
+      createdAt: current.createdAt ?? nowIso(),
+      updatedAt: updates.updatedAt ?? nowIso(),
+    })
 
-    records[index] = updated
-    writeEntity(entity, records)
+    const row = {
+      id: targetId,
+      data: toDbPayload(updated),
+      created_at: updated.createdAt ?? nowIso(),
+      updated_at: updated.updatedAt ?? nowIso(),
+    }
+
+    const { error } = await client.from(entity).upsert(row, { onConflict: 'id' })
+    if (error) {
+      throw new Error(error.message)
+    }
+
     return clone(updated)
   },
 
   delete: async (id: string) => {
+    const client = assertSupabase()
     const targetId = String(id || '').trim()
     if (!targetId) {
       throw new Error('ID invalido para exclusao')
     }
 
-    const records = readEntity(entity)
-    const index = records.findIndex((record) => String(record._id ?? record.id) === targetId)
-    if (index === -1) {
-      return { success: false }
+    const { error } = await client.from(entity).delete().eq('id', targetId)
+    if (error) {
+      throw new Error(error.message)
     }
 
-    records.splice(index, 1)
-    writeEntity(entity, records)
     return { success: true }
   },
 })
