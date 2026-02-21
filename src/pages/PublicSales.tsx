@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import {Plus, Trash2, FileText, Users, UserPlus, Search, ShoppingCart, Calendar} from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import {BarChart3, Calendar, CreditCard, FileText, LayoutGrid, Package, Plus, Search, ShoppingCart, Trash2, UserPlus, UserSquare2, Users} from 'lucide-react';
 import { lumi } from '../lib/lumi';
 import toast from 'react-hot-toast';
 import { generateSalePDF, generateSaleImage } from '../utils/pdfGenerator';
@@ -59,6 +60,18 @@ const safeToFixed = (value: any, decimals: number = 2): string => {
 const safeFormatCurrency = (value: any): string => {
   return `R$ ${safeToFixed(value, 2)}`;
 };
+
+const brandLogoUrl = '/brand/logo-cecilia.jpg';
+
+const salesSidebarItems = [
+  { to: '/admin', label: 'Dashboard', icon: LayoutGrid },
+  { to: '/admin/produtos', label: 'Produtos', icon: Package },
+  { to: '/admin/clientes', label: 'Clientes', icon: UserSquare2 },
+  { to: '/admin/vendas', label: 'Vendas', icon: Users },
+  { to: '/admin/relatorios', label: 'Relatorios', icon: BarChart3 },
+  { to: '/admin/formas-pagamento', label: 'Pagamentos', icon: CreditCard },
+];
+
 
 // 🔢 FUNÇÃO PARA OBTER PRÓXIMO NÚMERO DE VENDA DO BANCO
 const getNextSaleNumber = async (): Promise<number> => {
@@ -741,13 +754,43 @@ const PublicSales: React.FC = () => {
   const { subtotal, total } = calculateTotals();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 px-2 sm:px-4 lg:px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 sm:mb-0">Cadastro de Vendas</h1>
-            <div className="text-sm text-gray-600">
-              Área para Funcionários
+    <div className="min-h-screen bg-[#07020d] px-2 py-4 sm:px-4 lg:px-6">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[250px_1fr]">
+        <aside className="hidden lg:flex flex-col rounded-2xl border border-fuchsia-900/40 bg-[#0f061a] p-4 shadow-[0_0_40px_rgba(219,39,119,0.15)]">
+          <div className="mb-6 border-b border-fuchsia-900/40 pb-4">
+            <img
+              src={brandLogoUrl}
+              alt="Logomarca Cecilia"
+              className="h-14 w-full rounded-lg bg-black object-contain p-1"
+            />
+            <p className="mt-3 text-xs uppercase tracking-[0.2em] text-fuchsia-300">Cecilia Cama Mesa e Banho</p>
+          </div>
+
+          <nav className="space-y-2">
+            {salesSidebarItems.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-900/35'
+                      : 'text-slate-200 hover:bg-fuchsia-950/40 hover:text-white'
+                  }`
+                }
+              >
+                <Icon size={16} />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="rounded-2xl border border-fuchsia-900/40 bg-[#12081e]/95 p-4 shadow-[0_0_50px_rgba(219,39,119,0.18)] sm:p-6 lg:p-8">
+          <div className="mb-6 flex flex-col gap-3 border-b border-fuchsia-900/40 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-2xl font-bold text-white sm:text-3xl">Nova Venda</h1>
+            <div className="inline-flex items-center rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-fuchsia-200">
+              Ambiente de Vendas
             </div>
           </div>
 
@@ -1392,7 +1435,7 @@ const PublicSales: React.FC = () => {
                 className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg font-semibold"
               >
                 <FileText size={18} className="sm:w-5 sm:h-5" />
-                <span>{loading ? 'Processando...' : 'Registrar Venda e Gerar PDF'}</span>
+                <span>{loading ? 'Processando...' : 'Finalizar Venda'}</span>
               </button>
             </div>
           </form>
