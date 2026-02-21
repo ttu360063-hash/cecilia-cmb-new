@@ -756,7 +756,7 @@ const PublicSales: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#07020d] px-2 py-4 sm:px-4 lg:px-6">
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[250px_1fr]">
-        <aside className="hidden lg:flex flex-col rounded-2xl border border-fuchsia-900/40 bg-[#0f061a] p-4 shadow-[0_0_40px_rgba(219,39,119,0.15)]">
+        <aside className="hidden lg:flex flex-col rounded-2xl bg-[#0f061a] p-4 shadow-[0_0_40px_rgba(219,39,119,0.15)]">
           <div className="mb-6 border-b border-fuchsia-900/40 pb-4">
             <img
               src={brandLogoUrl}
@@ -786,7 +786,7 @@ const PublicSales: React.FC = () => {
           </nav>
         </aside>
 
-        <div className="rounded-2xl border border-fuchsia-900/40 bg-[#12081e]/95 p-4 shadow-[0_0_50px_rgba(219,39,119,0.18)] sm:p-6 lg:p-8">
+        <div className="rounded-2xl bg-[#12081e]/95 p-4 shadow-[0_0_50px_rgba(219,39,119,0.18)] sm:p-6 lg:p-8">
           <div className="mb-6 flex flex-col gap-3 border-b border-fuchsia-900/40 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-bold text-white sm:text-3xl">Nova Venda</h1>
             <div className="inline-flex items-center rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-fuchsia-200">
