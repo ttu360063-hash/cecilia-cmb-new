@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { isAdminAuthenticated, setAdminAuthenticated } from '../lib/auth'
 
+const brandLogoUrl = 'https://i.ibb.co/LsL79MB/logotipo-empresa.jpg'
+
 const AdminLogin: React.FC = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -36,6 +38,12 @@ const AdminLogin: React.FC = () => {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e2e8f0_0%,_#f8fafc_45%,_#ecfeff_100%)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-[0_20px_60px_-28px_rgba(2,6,23,0.45)] p-8">
         <div className="text-center mb-8">
+          <img
+            src={brandLogoUrl}
+            alt="Logomarca Cecilia Cama Mesa e Banho"
+            className="mx-auto mb-4 h-16 w-16 rounded-full border-2 border-white object-cover shadow-md"
+          />
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Cecilia Cama Mesa e Banho</p>
           <div className="mx-auto mb-5 grid h-20 w-20 place-content-center rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-800 text-white shadow-lg">
             <ShieldCheck size={34} />
           </div>

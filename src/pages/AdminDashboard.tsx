@@ -86,19 +86,19 @@ const AdminDashboard: React.FC = () => {
     customers: 'loading'
   })
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do Supabase
   const loadProductsFromDatabase = async (): Promise<Product[]> => {
     try {
-      console.log('🔄 CARREGANDO PRODUTOS DO MONGODB...')
+      console.log('🔄 CARREGANDO PRODUTOS DO Supabase...')
       const response = await lumi.entities.products.list({
         sort: { name: 1 },
         limit: 1000
       })
       
-      console.log('📊 RESPOSTA BRUTA DO MONGODB (PRODUTOS):', response)
+      console.log('📊 RESPOSTA BRUTA DO Supabase (PRODUTOS):', response)
       
       if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO MONGODB:', response)
+        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
         setDataLoadStatus(prev => ({ ...prev, products: 'error' }))
         return []
       }
@@ -132,19 +132,19 @@ const AdminDashboard: React.FC = () => {
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase
   const loadSalesFromDatabase = async (): Promise<Sale[]> => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO MONGODB...')
+      console.log('🔄 CARREGANDO VENDAS DO Supabase...')
       const response = await lumi.entities.sales.list({
         sort: { date: -1 },
         limit: 1000
       })
       
-      console.log('📊 RESPOSTA BRUTA DO MONGODB (VENDAS):', response)
+      console.log('📊 RESPOSTA BRUTA DO Supabase (VENDAS):', response)
       
       if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO MONGODB:', response)
+        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
         setDataLoadStatus(prev => ({ ...prev, sales: 'error' }))
         return []
       }
@@ -193,19 +193,19 @@ const AdminDashboard: React.FC = () => {
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do Supabase
   const loadCustomersFromDatabase = async (): Promise<Customer[]> => {
     try {
-      console.log('🔄 CARREGANDO CLIENTES DO MONGODB...')
+      console.log('🔄 CARREGANDO CLIENTES DO Supabase...')
       const response = await lumi.entities.customers.list({
         sort: { name: 1 },
         limit: 1000
       })
       
-      console.log('📊 RESPOSTA BRUTA DO MONGODB (CLIENTES):', response)
+      console.log('📊 RESPOSTA BRUTA DO Supabase (CLIENTES):', response)
       
       if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO MONGODB:', response)
+        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
         setDataLoadStatus(prev => ({ ...prev, customers: 'error' }))
         return []
       }
@@ -237,13 +237,13 @@ const AdminDashboard: React.FC = () => {
     }
   }
 
-  // 📂 CARREGAR DADOS INICIAIS DO MONGODB
+  // 📂 CARREGAR DADOS INICIAIS DO Supabase
   const loadAllDataFromDatabase = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      console.log('🚀 INICIANDO CARREGAMENTO DE DADOS DO MONGODB...')
+      console.log('🚀 INICIANDO CARREGAMENTO DE DADOS DO Supabase...')
 
       // Reset status
       setDataLoadStatus({
@@ -275,7 +275,7 @@ const AdminDashboard: React.FC = () => {
       
     } catch (error) {
       console.error('❌ ERRO CRÍTICO NO CARREGAMENTO:', error)
-      setError('Erro ao carregar dados do banco de dados MongoDB')
+      setError('Erro ao carregar dados do banco de dados Supabase')
       toast.error('Erro ao carregar dados do banco')
     } finally {
       setLoading(false)
@@ -284,7 +284,7 @@ const AdminDashboard: React.FC = () => {
 
   // Função para forçar atualização
   const forceRefresh = async () => {
-    console.log('🔄 === FORÇANDO ATUALIZAÇÃO DOS DADOS DO MONGODB ===')
+    console.log('🔄 === FORÇANDO ATUALIZAÇÃO DOS DADOS DO Supabase ===')
     toast.info('Atualizando dados do banco...')
     await loadAllDataFromDatabase()
     toast.success('Dados atualizados!')
@@ -317,7 +317,7 @@ const AdminDashboard: React.FC = () => {
     console.log('Error:', error)
   }, [products, sales, customers, dataLoadStatus, lastUpdate, loading, error])
 
-  // Cálculos com dados reais do MongoDB
+  // Cálculos com dados reais do Supabase
   const activeProducts = products.filter(product => product.active !== false)
   const activeSales = sales.filter(sale => sale.active !== false)
   const activeCustomers = customers.filter(customer => customer.active !== false)
@@ -406,7 +406,7 @@ const AdminDashboard: React.FC = () => {
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados reais do MongoDB...</p>
+            <p className="text-gray-600">Carregando dados reais do Supabase...</p>
             <div className="mt-4 space-y-2">
               <div className={`text-xs px-3 py-1 rounded-full ${
                 dataLoadStatus.products === 'success' ? 'bg-green-100 text-green-700' :
@@ -495,14 +495,14 @@ const AdminDashboard: React.FC = () => {
               Dashboard Administrativo
             </h1>
             <p className="text-sm sm:text-base text-gray-600">
-              Visão geral do desempenho da loja - Dados Reais do MongoDB
+              Visão geral do desempenho da loja - Dados Reais do Supabase
             </p>
           </div>
           <button 
             onClick={forceRefresh}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
           >
-            🔄 Atualizar MongoDB
+            🔄 Atualizar Supabase
           </button>
         </div>
         
@@ -520,7 +520,7 @@ const AdminDashboard: React.FC = () => {
             </span>
           )}
           <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full inline-block">
-            🗄️ MongoDB: P:{dataLoadStatus.products.charAt(0).toUpperCase()} | V:{dataLoadStatus.sales.charAt(0).toUpperCase()} | C:{dataLoadStatus.customers.charAt(0).toUpperCase()}
+            🗄️ Supabase: P:{dataLoadStatus.products.charAt(0).toUpperCase()} | V:{dataLoadStatus.sales.charAt(0).toUpperCase()} | C:{dataLoadStatus.customers.charAt(0).toUpperCase()}
           </span>
         </div>
       </div>
@@ -538,7 +538,7 @@ const AdminDashboard: React.FC = () => {
               dataLoadStatus.products === 'error' ? 'text-red-500 bg-red-100' :
               'text-yellow-500 bg-yellow-100'
             }`}>
-              {dataLoadStatus.products === 'success' ? 'MongoDB' : 
+              {dataLoadStatus.products === 'success' ? 'Supabase' : 
                dataLoadStatus.products === 'error' ? 'Erro' : 'Carregando'}
             </span>
           </div>
@@ -564,7 +564,7 @@ const AdminDashboard: React.FC = () => {
               dataLoadStatus.sales === 'error' ? 'text-red-500 bg-red-100' :
               'text-yellow-500 bg-yellow-100'
             }`}>
-              {dataLoadStatus.sales === 'success' ? 'MongoDB' : 
+              {dataLoadStatus.sales === 'success' ? 'Supabase' : 
                dataLoadStatus.sales === 'error' ? 'Erro' : 'Carregando'}
             </span>
           </div>
@@ -588,7 +588,7 @@ const AdminDashboard: React.FC = () => {
               dataLoadStatus.customers === 'error' ? 'text-red-500 bg-red-100' :
               'text-yellow-500 bg-yellow-100'
             }`}>
-              {dataLoadStatus.customers === 'success' ? 'MongoDB' : 
+              {dataLoadStatus.customers === 'success' ? 'Supabase' : 
                dataLoadStatus.customers === 'error' ? 'Erro' : 'Carregando'}
             </span>
           </div>
@@ -867,4 +867,3 @@ const AdminDashboard: React.FC = () => {
 }
 
 export default AdminDashboard
-

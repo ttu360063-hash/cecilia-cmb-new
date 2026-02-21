@@ -248,19 +248,19 @@ const SalesManagement: React.FC = () => {
   const [showDuplicateProductModal, setShowDuplicateProductModal] = useState(false)
   const [pendingProductToAdd, setPendingProductToAdd] = useState<{ product: Product, quantity: number } | null>(null)
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do MongoDB COM CORREÇÃO DE DADOS E ORDENAÇÃO
+  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase COM CORREÇÃO DE DADOS E ORDENAÇÃO
   const loadSalesFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO MONGODB...')
+      console.log('🔄 CARREGANDO VENDAS DO Supabase...')
       const response = await lumi.entities.sales.list({
         sort: { createdAt: 1 }, // Ordenar por data de criação (ordem cronológica crescente)
         limit: 1000 // Limitar carregamento inicial para melhor performance
       })
       
-      console.log('📊 RESPOSTA BRUTA DO MONGODB (VENDAS):', response)
+      console.log('📊 RESPOSTA BRUTA DO Supabase (VENDAS):', response)
       
       if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO MONGODB:', response)
+        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
         setSales([])
         return []
       }
@@ -286,7 +286,7 @@ const SalesManagement: React.FC = () => {
           },
           
           // 🔧 CORREÇÃO CRÍTICA: Itens da venda com validação ULTRA-ROBUSTA
-          // Tentar múltiplos nomes de campo possíveis do MongoDB
+          // Tentar múltiplos nomes de campo possíveis do Supabase
           items: (() => {
             // Tentar encontrar o array de items em diferentes campos possíveis
             const itemsArray = sale.items || sale.products || sale.saleItems || sale.vendaItems || []
@@ -345,10 +345,10 @@ const SalesManagement: React.FC = () => {
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do Supabase
   const loadCustomersFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO CLIENTES DO MONGODB...')
+      console.log('🔄 CARREGANDO CLIENTES DO Supabase...')
       const response = await lumi.entities.customers.list({
         sort: { name: 1 }
       })
@@ -359,19 +359,19 @@ const SalesManagement: React.FC = () => {
         active: customer.active !== false
       }))
 
-      console.log('✅ CLIENTES CARREGADOS DO MONGODB:', customersData.length)
+      console.log('✅ CLIENTES CARREGADOS DO Supabase:', customersData.length)
       setCustomers(customersData)
       return customersData
     } catch (error) {
-      console.error('❌ ERRO AO CARREGAR CLIENTES DO MONGODB:', error)
+      console.error('❌ ERRO AO CARREGAR CLIENTES DO Supabase:', error)
       throw error
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do Supabase
   const loadProductsFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO PRODUTOS DO MONGODB...')
+      console.log('🔄 CARREGANDO PRODUTOS DO Supabase...')
       const response = await lumi.entities.products.list({
         sort: { name: 1 }
       })
@@ -384,11 +384,11 @@ const SalesManagement: React.FC = () => {
         stock: safeNumber(product.stock, 0)
       }))
 
-      console.log('✅ PRODUTOS CARREGADOS DO MONGODB:', productsData.length)
+      console.log('✅ PRODUTOS CARREGADOS DO Supabase:', productsData.length)
       setProducts(productsData)
       return productsData
     } catch (error) {
-      console.error('❌ ERRO AO CARREGAR PRODUTOS DO MONGODB:', error)
+      console.error('❌ ERRO AO CARREGAR PRODUTOS DO Supabase:', error)
       throw error
     }
   }
@@ -397,10 +397,10 @@ const SalesManagement: React.FC = () => {
   // A função foi removida para melhorar performance no carregamento inicial
   // Todas as novas vendas já são criadas com saleNumber desde a implementação
 
-  // 🔥 FUNÇÃO: Carregar formas de pagamento do MongoDB
+  // 🔥 FUNÇÃO: Carregar formas de pagamento do Supabase
   const loadPaymentMethodsFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO FORMAS DE PAGAMENTO DO MONGODB...')
+      console.log('🔄 CARREGANDO FORMAS DE PAGAMENTO DO Supabase...')
       const response = await lumi.entities.payment_methods.list({
         filter: { active: true },
         sort: { order: 1, name: 1 }
@@ -420,13 +420,13 @@ const SalesManagement: React.FC = () => {
     }
   }
 
-  // 📂 CARREGAR DADOS INICIAIS DO MONGODB
+  // 📂 CARREGAR DADOS INICIAIS DO Supabase
   const loadInitialData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      console.log('🚀 INICIANDO CARREGAMENTO DE DADOS DO MONGODB...')
+      console.log('🚀 INICIANDO CARREGAMENTO DE DADOS DO Supabase...')
 
       // Carregar dados em paralelo para melhor performance
       const [salesData, customersData, productsData, paymentMethodsData] = await Promise.all([
@@ -866,7 +866,7 @@ const SalesManagement: React.FC = () => {
     setShowEditSaleModal(true)
   }
 
-  // 💾 SALVAR EDIÇÃO DA VENDA NO MONGODB
+  // 💾 SALVAR EDIÇÃO DA VENDA NO Supabase
   const handleSaveEditSale = async () => {
     if (!editingSale) return
 
@@ -898,7 +898,7 @@ const SalesManagement: React.FC = () => {
         active: true
       }
 
-      console.log('💾 ATUALIZANDO VENDA NO MONGODB:', updatedSaleData)
+      console.log('💾 ATUALIZANDO VENDA NO Supabase:', updatedSaleData)
       
       await lumi.entities.sales.update(editingSale._id || editingSale.id || '', updatedSaleData)
       
@@ -906,7 +906,7 @@ const SalesManagement: React.FC = () => {
       await loadSalesFromDatabase()
       
       toast.success('Venda atualizada com sucesso!')
-      console.log('✅ VENDA ATUALIZADA NO MONGODB:', editingSale._id)
+      console.log('✅ VENDA ATUALIZADA NO Supabase:', editingSale._id)
       
       setShowEditSaleModal(false)
       setEditingSale(null)
@@ -1060,7 +1060,7 @@ const SalesManagement: React.FC = () => {
     })
   }
 
-  // 🗑️ EXCLUIR VENDA DO MONGODB
+  // 🗑️ EXCLUIR VENDA DO Supabase
   const handleDeleteSale = async (saleId: string) => {
     const saleToDelete = sales.find(s => (s._id || s.id) === saleId)
     if (!saleToDelete) {
@@ -1079,7 +1079,7 @@ const SalesManagement: React.FC = () => {
         setSales(updatedSales)
         
         toast.success('Venda excluída com sucesso!')
-        console.log('✅ VENDA EXCLUÍDA DO MONGODB:', saleId)
+        console.log('✅ VENDA EXCLUÍDA DO Supabase:', saleId)
       } catch (error) {
         console.error('❌ ERRO AO EXCLUIR VENDA:', error)
         toast.error('Erro ao excluir venda do banco de dados')
@@ -1087,7 +1087,7 @@ const SalesManagement: React.FC = () => {
     }
   }
 
-  // 💾 SALVAR NOVA VENDA NO MONGODB
+  // 💾 SALVAR NOVA VENDA NO Supabase
   const handleSaveNewSale = async () => {
     if (!newSale.customer.name.trim()) {
       toast.error('Nome do cliente é obrigatório!')
@@ -1120,7 +1120,7 @@ const SalesManagement: React.FC = () => {
         active: true
       }
 
-      console.log('💾 SALVANDO NOVA VENDA NO MONGODB:', newSaleData)
+      console.log('💾 SALVANDO NOVA VENDA NO Supabase:', newSaleData)
       
       const createdSale = await lumi.entities.sales.create(newSaleData)
       
@@ -1128,7 +1128,7 @@ const SalesManagement: React.FC = () => {
       await loadSalesFromDatabase()
       
       toast.success(`Venda #${String(nextNumber).padStart(4, '0')} registrada com sucesso!`)
-      console.log('✅ VENDA SALVA NO MONGODB:', createdSale._id)
+      console.log('✅ VENDA SALVA NO Supabase:', createdSale._id)
       
       setShowNewSaleModal(false)
       setNewSale({
@@ -1288,7 +1288,7 @@ const SalesManagement: React.FC = () => {
   }
 
   const handleReload = async () => {
-    if (window.confirm('⚠️ RECARREGAR DADOS DO BANCO?\n\nTodos os dados serão recarregados do MongoDB!')) {
+    if (window.confirm('⚠️ RECARREGAR DADOS DO BANCO?\n\nTodos os dados serão recarregados do Supabase!')) {
       await loadInitialData()
       toast.success('Dados recarregados do banco!')
     }
@@ -1324,7 +1324,7 @@ const SalesManagement: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Carregando vendas do banco de dados...</p>
-            <p className="text-gray-500 text-sm mt-2">Conectando ao MongoDB...</p>
+            <p className="text-gray-500 text-sm mt-2">Conectando ao Supabase...</p>
           </div>
         </div>
       </div>
@@ -1374,7 +1374,7 @@ const SalesManagement: React.FC = () => {
           Gestão de Vendas
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Sistema de vendas integrado com banco de dados MongoDB
+          Sistema de vendas integrado com banco de dados Supabase
         </p>
       </div>
 
@@ -1411,7 +1411,7 @@ const SalesManagement: React.FC = () => {
             <Database className="w-6 h-6 text-indigo-600" />
             <div>
               <p className="text-indigo-800 font-medium">
-                🗄️ MongoDB Conectado
+                🗄️ Supabase Conectado
               </p>
               <p className="text-indigo-600 text-sm">
                 {stats.total} vendas • {stats.concluidas} concluídas • {stats.pendentes} pendentes • Valor: R$ {safeFormatCurrency(stats.totalValue)}

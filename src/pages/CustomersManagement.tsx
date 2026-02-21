@@ -50,7 +50,7 @@ const CustomersManagement: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      setDebugInfo('🔍 Iniciando busca de clientes...')
+      setDebugInfo('Buscando clientes...')
       
       console.log('🔍 INICIANDO CARREGAMENTO DE CLIENTES...')
       console.log('📡 SDK Lumi:', !!lumi)
@@ -64,7 +64,7 @@ const CustomersManagement: React.FC = () => {
       // Listar todas as entidades disponíveis
       const availableEntities = Object.keys(lumi.entities)
       console.log('📋 Entidades encontradas:', availableEntities)
-      setDebugInfo(`📋 Entidades disponíveis: ${availableEntities.join(', ')}`)
+      setDebugInfo('Conectando com o banco de dados...')
       
       // Tentar TODOS os nomes possíveis de entidade
       const possibleEntityNames = [
@@ -81,14 +81,14 @@ const CustomersManagement: React.FC = () => {
           entityName = name
           entity = lumi.entities[name]
           console.log(`✅ Entidade encontrada: ${name}`)
-          setDebugInfo(`✅ Entidade encontrada: ${name}`)
+          setDebugInfo('Fonte de clientes encontrada')
           break
         }
       }
       
       if (!entity) {
         console.log('❌ Nenhuma entidade de clientes encontrada')
-        setDebugInfo(`❌ Entidade de clientes não encontrada. Entidades disponíveis: ${availableEntities.join(', ')}`)
+        setDebugInfo('Tabela de clientes nao encontrada')
         
         // Tentar acessar diretamente pelo primeiro item disponível
         if (availableEntities.length > 0) {
@@ -96,7 +96,7 @@ const CustomersManagement: React.FC = () => {
           entity = lumi.entities[firstEntity]
           entityName = firstEntity
           console.log(`🔄 Tentando usar primeira entidade: ${firstEntity}`)
-          setDebugInfo(`🔄 Tentando usar primeira entidade: ${firstEntity}`)
+          setDebugInfo('Tentando fonte alternativa de clientes...')
         } else {
           setCustomers([])
           return
@@ -114,7 +114,7 @@ const CustomersManagement: React.FC = () => {
       for (const methodName of methods) {
         try {
           console.log(`🔍 Tentando ${entityName}.${methodName}()...`)
-          setDebugInfo(`🔍 Tentando ${entityName}.${methodName}()...`)
+          setDebugInfo('Buscando clientes no banco de dados...')
           
           if (typeof entity[methodName] === 'function') {
             if (methodName === 'find') {
@@ -124,7 +124,7 @@ const CustomersManagement: React.FC = () => {
             }
             method = `${entityName}.${methodName}()`
             console.log(`✅ Método ${methodName}() funcionou:`, response)
-            setDebugInfo(`✅ Método ${methodName}() funcionou`)
+            setDebugInfo('Consulta executada com sucesso')
             break
           }
         } catch (methodError) {
@@ -141,7 +141,7 @@ const CustomersManagement: React.FC = () => {
       let customersList = []
       
       console.log('📋 Resposta bruta do banco:', response)
-      setDebugInfo(`📋 Processando resposta do método: ${method}`)
+      setDebugInfo('Processando dados recebidos...')
       
       // Estratégia 1: Resposta é array direto
       if (Array.isArray(response)) {
@@ -182,7 +182,7 @@ const CustomersManagement: React.FC = () => {
       }
       
       console.log('📋 Lista de clientes processada:', customersList)
-      setDebugInfo(`📋 ${customersList.length} registros encontrados`)
+      setDebugInfo(`Registros encontrados: ${customersList.length}`)
       
       if (customersList.length > 0) {
         // Processar cada cliente com máxima flexibilidade
@@ -216,11 +216,11 @@ const CustomersManagement: React.FC = () => {
         setLastSaved(new Date().toISOString())
         
         console.log(`✅ ${processedCustomers.length} CLIENTES CARREGADOS:`, processedCustomers)
-        setDebugInfo(`✅ ${processedCustomers.length} clientes carregados com sucesso usando ${method}`)
+        setDebugInfo(`Clientes carregados com sucesso: ${processedCustomers.length}`)
         
       } else {
         console.log('📭 NENHUM CLIENTE ENCONTRADO')
-        setDebugInfo(`📭 Nenhum cliente encontrado (método: ${method})`)
+        setDebugInfo('Nenhum cliente encontrado')
         setCustomers([])
       }
       
@@ -228,7 +228,7 @@ const CustomersManagement: React.FC = () => {
       console.error('❌ ERRO AO CARREGAR CLIENTES:', error)
       setError(`Erro ao carregar clientes: ${error.message}`)
       setCustomers([])
-      setDebugInfo(`❌ Erro: ${error.message}`)
+      setDebugInfo(`Erro ao carregar clientes: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -426,7 +426,7 @@ const CustomersManagement: React.FC = () => {
 
   // 🔄 RECARREGAR DADOS DO BANCO
   const handleReload = () => {
-    setDebugInfo('🔄 Recarregando dados...')
+    setDebugInfo('Atualizando dados...')
     loadCustomersFromDatabase()
   }
 
@@ -461,7 +461,7 @@ const CustomersManagement: React.FC = () => {
           Gestão de Clientes
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Área administrativa - Banco de dados MongoDB
+          Área administrativa - Banco de dados Supabase
         </p>
       </div>
 
@@ -511,7 +511,7 @@ const CustomersManagement: React.FC = () => {
             <Database className="w-6 h-6 text-green-600" />
             <div>
               <p className="text-green-800 font-medium">
-                🗄️ MongoDB {customers.length > 0 ? 'CONECTADO' : 'Buscando...'}
+                🗄️ Supabase {customers.length > 0 ? 'CONECTADO' : 'Buscando...'}
               </p>
               <p className="text-green-600 text-sm">
                 {stats.total} clientes • {stats.pessoaFisica} PF • {stats.pessoaJuridica} PJ

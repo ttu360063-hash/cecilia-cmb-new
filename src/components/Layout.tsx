@@ -76,6 +76,8 @@ const mobileNavClassName = ({ isActive }: { isActive: boolean }) =>
       : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
   }`
 
+const brandLogoUrl = 'https://i.ibb.co/LsL79MB/logotipo-empresa.jpg'
+
 const Layout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
@@ -100,14 +102,21 @@ const Layout: React.FC = () => {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe_0%,_#f8fafc_32%,_#f1f5f9_100%)]">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
-              <span className="inline-block h-2 w-2 rounded-full bg-cyan-500" />
-              Cecilia Cama Mesa e Banho
+          <div className="min-w-0 flex items-center gap-3 sm:gap-4">
+            <img
+              src={brandLogoUrl}
+              alt="Logomarca Cecilia Cama Mesa e Banho"
+              className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-md sm:h-14 sm:w-14"
+            />
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
+                <span className="inline-block h-2 w-2 rounded-full bg-cyan-500" />
+                Cecilia Cama Mesa e Banho
+              </div>
+              <h1 className="mt-2 truncate text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">
+                Sistema de Gestao Comercial
+              </h1>
             </div>
-            <h1 className="mt-2 truncate text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">
-              Sistema de Gestao Comercial
-            </h1>
           </div>
 
           <nav className="hidden items-center gap-2 lg:flex">
@@ -183,7 +192,14 @@ const Layout: React.FC = () => {
 
       <footer className="border-t border-slate-200/80 bg-white/85">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span className="font-semibold text-slate-700">CECILIA CAMA MESA E BANHO</span>
+          <div className="flex items-center gap-2.5">
+            <img
+              src={brandLogoUrl}
+              alt="Logomarca Cecilia"
+              className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+            />
+            <span className="font-semibold text-slate-700">CECILIA CAMA MESA E BANHO</span>
+          </div>
           <span>Contato: (79) 9 9651-3935</span>
         </div>
       </footer>

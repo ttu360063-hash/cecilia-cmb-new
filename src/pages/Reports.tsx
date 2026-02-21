@@ -112,16 +112,16 @@ const Reports: React.FC = () => {
     end: ''
   })
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase
   const loadSalesFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO MONGODB PARA RELATÓRIOS...')
+      console.log('🔄 CARREGANDO VENDAS DO Supabase PARA RELATÓRIOS...')
       const response = await lumi.entities.sales.list({
         sort: { date: -1 }
       })
       
       if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO MONGODB:', response)
+        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
         return []
       }
 
@@ -157,10 +157,10 @@ const Reports: React.FC = () => {
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do Supabase
   const loadProductsFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO PRODUTOS DO MONGODB PARA RELATÓRIOS...')
+      console.log('🔄 CARREGANDO PRODUTOS DO Supabase PARA RELATÓRIOS...')
       const response = await lumi.entities.products.list({
         sort: { name: 1 }
       })
@@ -182,10 +182,10 @@ const Reports: React.FC = () => {
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do MongoDB
+  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do Supabase
   const loadCustomersFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO CLIENTES DO MONGODB PARA RELATÓRIOS...')
+      console.log('🔄 CARREGANDO CLIENTES DO Supabase PARA RELATÓRIOS...')
       const response = await lumi.entities.customers.list({
         sort: { name: 1 }
       })
@@ -205,7 +205,7 @@ const Reports: React.FC = () => {
     }
   }
 
-  // 📂 CARREGAR DADOS INICIAIS DO MONGODB
+  // 📂 CARREGAR DADOS INICIAIS DO Supabase
   const loadInitialData = async () => {
     try {
       setLoading(true)
@@ -395,7 +395,7 @@ const Reports: React.FC = () => {
   }
 
   const handleReload = async () => {
-    if (window.confirm('⚠️ RECARREGAR DADOS DO BANCO?\n\nTodos os dados dos relatórios serão recarregados do MongoDB!')) {
+    if (window.confirm('⚠️ RECARREGAR DADOS DO BANCO?\n\nTodos os dados dos relatórios serão recarregados do Supabase!')) {
       await loadInitialData()
       toast.success('Dados dos relatórios recarregados!')
     }
@@ -408,7 +408,7 @@ const Reports: React.FC = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Carregando dados dos relatórios...</p>
-            <p className="text-gray-500 text-sm mt-2">Conectando ao MongoDB...</p>
+            <p className="text-gray-500 text-sm mt-2">Conectando ao Supabase...</p>
           </div>
         </div>
       </div>
@@ -450,7 +450,7 @@ const Reports: React.FC = () => {
           Relatórios
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Análises e relatórios detalhados do negócio com dados do MongoDB
+          Análises e relatórios detalhados do negócio com dados do Supabase
         </p>
       </div>
 
@@ -461,7 +461,7 @@ const Reports: React.FC = () => {
             <Database className="w-6 h-6 text-green-600" />
             <div>
               <p className="text-green-800 font-medium">
-                📊 Dados dos Relatórios - MongoDB Conectado
+                📊 Dados dos Relatórios - Supabase Conectado
               </p>
               <p className="text-green-600 text-sm">
                 {totalSales} vendas • R$ {safeFormatCurrency(totalRevenue)} em receita • {totalCustomers} clientes • {totalProducts} produtos
@@ -599,7 +599,7 @@ const Reports: React.FC = () => {
                 <li>• <strong>Relatório de Vendas:</strong> Considera o período selecionado nos filtros acima ({filteredSales.length} vendas)</li>
                 <li>• <strong>Relatório de Produtos:</strong> Lista todos os produtos ativos no sistema ({totalProducts} produtos)</li>
                 <li>• <strong>Relatório de Clientes:</strong> Lista todos os clientes cadastrados ({totalCustomers} clientes) com histórico de compras</li>
-                <li>• <strong>Dados em tempo real:</strong> Todos os relatórios são gerados com dados atualizados do MongoDB</li>
+                <li>• <strong>Dados em tempo real:</strong> Todos os relatórios são gerados com dados atualizados do Supabase</li>
               </ul>
             </div>
           </div>
