@@ -76,7 +76,7 @@ const mobileNavClassName = ({ isActive }: { isActive: boolean }) =>
       : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
   }`
 
-const brandLogoUrl = 'https://i.ibb.co/LsL79MB/logotipo-empresa.jpg'
+const brandLogoUrl = '/brand/logo-cecilia.jpg'
 
 const Layout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -106,7 +106,7 @@ const Layout: React.FC = () => {
             <img
               src={brandLogoUrl}
               alt="Logomarca Cecilia Cama Mesa e Banho"
-              className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-md sm:h-14 sm:w-14"
+              className="h-10 w-24 rounded-lg border border-slate-200 bg-black object-contain p-1 shadow-md sm:h-12 sm:w-32"
             />
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
@@ -196,7 +196,7 @@ const Layout: React.FC = () => {
             <img
               src={brandLogoUrl}
               alt="Logomarca Cecilia"
-              className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+              className="h-8 w-20 rounded border border-slate-200 bg-black object-contain p-1"
             />
             <span className="font-semibold text-slate-700">CECILIA CAMA MESA E BANHO</span>
           </div>

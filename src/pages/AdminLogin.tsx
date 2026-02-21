@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { isAdminAuthenticated, setAdminAuthenticated } from '../lib/auth'
 
-const brandLogoUrl = 'https://i.ibb.co/LsL79MB/logotipo-empresa.jpg'
+const brandLogoUrl = '/brand/logo-cecilia.jpg'
 
 const AdminLogin: React.FC = () => {
   const [password, setPassword] = useState('')
@@ -41,7 +41,7 @@ const AdminLogin: React.FC = () => {
           <img
             src={brandLogoUrl}
             alt="Logomarca Cecilia Cama Mesa e Banho"
-            className="mx-auto mb-4 h-16 w-16 rounded-full border-2 border-white object-cover shadow-md"
+            className="mx-auto mb-4 h-16 w-44 rounded-xl border border-slate-200 bg-black object-contain p-2 shadow-md sm:h-20 sm:w-56"
           />
           <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Cecilia Cama Mesa e Banho</p>
           <div className="mx-auto mb-5 grid h-20 w-20 place-content-center rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-800 text-white shadow-lg">
