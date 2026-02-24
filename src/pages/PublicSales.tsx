@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import {BarChart3, Calendar, CreditCard, FileText, LayoutGrid, Package, Plus, Search, ShoppingCart, Trash2, UserPlus, UserSquare2, Users} from 'lucide-react';
+import { Calendar, FileText, Plus, Search, ShoppingCart, Trash2, UserPlus, Users } from 'lucide-react';
 import { lumi } from '../lib/lumi';
 import toast from 'react-hot-toast';
 import { generateSalePDF, generateSaleImage } from '../utils/pdfGenerator';
@@ -60,17 +59,6 @@ const safeToFixed = (value: any, decimals: number = 2): string => {
 const safeFormatCurrency = (value: any): string => {
   return `R$ ${safeToFixed(value, 2)}`;
 };
-
-const brandLogoUrl = '/brand/logo-cecilia.jpg';
-
-const salesSidebarItems = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutGrid },
-  { to: '/admin/produtos', label: 'Produtos', icon: Package },
-  { to: '/admin/clientes', label: 'Clientes', icon: UserSquare2 },
-  { to: '/admin/vendas', label: 'Vendas', icon: Users },
-  { to: '/admin/relatorios', label: 'Relatorios', icon: BarChart3 },
-  { to: '/admin/formas-pagamento', label: 'Pagamentos', icon: CreditCard },
-];
 
 
 // 🔢 FUNÇÃO PARA OBTER PRÓXIMO NÚMERO DE VENDA DO BANCO
@@ -755,36 +743,7 @@ const PublicSales: React.FC = () => {
 
   return (
     <div className="sales-theme min-h-screen bg-[#07020d] px-2 py-4 sm:px-4 lg:px-6">
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[250px_1fr]">
-        <aside className="hidden lg:flex flex-col rounded-2xl bg-[#0f061a] p-4 shadow-[0_0_40px_rgba(219,39,119,0.15)]">
-          <div className="mb-6 border-b border-fuchsia-900/40 pb-4">
-            <img
-              src={brandLogoUrl}
-              alt="Logomarca Cecilia"
-              className="mx-auto h-16 w-16 rounded-lg border border-fuchsia-500/35 bg-black object-contain p-1"
-            />
-            <p className="mt-3 text-xs uppercase tracking-[0.2em] text-fuchsia-300">Cecilia Cama Mesa e Banho</p>
-          </div>
-
-          <nav className="space-y-2">
-            {salesSidebarItems.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                    isActive
-                      ? 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-900/35'
-                      : 'text-slate-200 hover:bg-fuchsia-950/40 hover:text-white'
-                  }`
-                }
-              >
-                <Icon size={16} />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </nav>
-        </aside>
+      <div className="mx-auto w-full max-w-[1500px]">
 
         <div className="rounded-2xl bg-[#12081e]/95 p-4 shadow-[0_0_50px_rgba(219,39,119,0.18)] sm:p-6 lg:p-8">
           <div className="mb-6 flex flex-col gap-3 border-b border-fuchsia-900/40 pb-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
