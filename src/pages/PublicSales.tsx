@@ -754,14 +754,14 @@ const PublicSales: React.FC = () => {
   const { subtotal, total } = calculateTotals();
 
   return (
-    <div className="min-h-screen bg-[#07020d] px-2 py-4 sm:px-4 lg:px-6">
+    <div className="sales-theme min-h-screen bg-[#07020d] px-2 py-4 sm:px-4 lg:px-6">
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[250px_1fr]">
         <aside className="hidden lg:flex flex-col rounded-2xl bg-[#0f061a] p-4 shadow-[0_0_40px_rgba(219,39,119,0.15)]">
           <div className="mb-6 border-b border-fuchsia-900/40 pb-4">
             <img
               src={brandLogoUrl}
               alt="Logomarca Cecilia"
-              className="h-14 w-full rounded-lg bg-black object-contain p-1"
+              className="mx-auto h-16 w-16 rounded-lg border border-fuchsia-500/35 bg-black object-contain p-1"
             />
             <p className="mt-3 text-xs uppercase tracking-[0.2em] text-fuchsia-300">Cecilia Cama Mesa e Banho</p>
           </div>

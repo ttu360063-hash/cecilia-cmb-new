@@ -41,7 +41,7 @@ const AdminLogin: React.FC = () => {
           <img
             src={brandLogoUrl}
             alt="Logomarca Cecilia Cama Mesa e Banho"
-            className="mx-auto mb-4 h-16 w-44 rounded-xl border border-slate-200 bg-black object-contain p-2 shadow-md sm:h-20 sm:w-56"
+            className="mx-auto mb-4 h-20 w-20 rounded-xl border border-slate-200 bg-black object-contain p-2 shadow-md sm:h-24 sm:w-24"
           />
           <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Cecilia Cama Mesa e Banho</p>
           <div className="mx-auto mb-5 grid h-20 w-20 place-content-center rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-800 text-white shadow-lg">

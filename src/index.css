@@ -38,4 +38,92 @@
   .app-panel {
     @apply rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_18px_55px_-36px_rgba(2,6,23,0.55)];
   }
+
+  .sales-theme {
+    color: #f8ecff;
+  }
+
+  .sales-theme .bg-white,
+  .sales-theme .bg-indigo-50,
+  .sales-theme .bg-purple-50,
+  .sales-theme .bg-blue-50,
+  .sales-theme .bg-green-50,
+  .sales-theme .bg-yellow-50,
+  .sales-theme .bg-orange-50 {
+    background-color: rgba(34, 14, 50, 0.9) !important;
+  }
+
+  .sales-theme .bg-purple-100 {
+    background-color: rgba(93, 38, 128, 0.45) !important;
+  }
+
+  .sales-theme .border-gray-200,
+  .sales-theme .border-gray-300,
+  .sales-theme .border-indigo-200,
+  .sales-theme .border-purple-300,
+  .sales-theme .border-green-200,
+  .sales-theme .border-yellow-300,
+  .sales-theme .border-orange-200 {
+    border-color: rgba(199, 143, 236, 0.35) !important;
+  }
+
+  .sales-theme .border-green-600 {
+    border-color: rgba(74, 222, 128, 0.58) !important;
+  }
+
+  .sales-theme input,
+  .sales-theme select,
+  .sales-theme textarea {
+    background-color: rgba(20, 9, 31, 0.92);
+    border-color: rgba(199, 143, 236, 0.45);
+    color: #f6f0ff;
+  }
+
+  .sales-theme input::placeholder,
+  .sales-theme textarea::placeholder {
+    color: #b39cc9;
+  }
+
+  .sales-theme .text-gray-800 {
+    color: #f7f2ff !important;
+  }
+
+  .sales-theme .text-gray-700 {
+    color: #e7d7f9 !important;
+  }
+
+  .sales-theme .text-gray-600 {
+    color: #d2bddf !important;
+  }
+
+  .sales-theme .text-gray-500 {
+    color: #b8a2ca !important;
+  }
+
+  .sales-theme .text-indigo-800,
+  .sales-theme .text-purple-800,
+  .sales-theme .text-blue-800,
+  .sales-theme .text-green-800,
+  .sales-theme .text-orange-800,
+  .sales-theme .text-yellow-800 {
+    color: #f2deff !important;
+  }
+
+  .sales-theme .text-indigo-700,
+  .sales-theme .text-purple-600,
+  .sales-theme .text-blue-500,
+  .sales-theme .text-green-700,
+  .sales-theme .text-orange-600 {
+    color: #d9b7ff !important;
+  }
+
+  .sales-theme .hover\:bg-gray-50:hover,
+  .sales-theme .hover\:bg-purple-50:hover,
+  .sales-theme .hover\:bg-blue-50:hover {
+    background-color: rgba(65, 26, 95, 0.45) !important;
+  }
+
+  .sales-theme hr {
+    border-color: rgba(199, 143, 236, 0.28);
+  }
 }
