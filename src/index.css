@@ -1,5 +1,4 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,11 +6,11 @@
 
 @layer base {
   :root {
-    --app-bg: #76245e;
-    --text-main: #0f172a;
-    --text-soft: #475569;
-    --line: #e2e8f0;
-    --card-bg: rgba(169, 137, 137, 0.9);
+    --app-bg: #07030d;
+    --text-main: #f7f2ff;
+    --text-soft: #cbb6df;
+    --line: rgba(199, 143, 236, 0.35);
+    --card-bg: rgba(24, 10, 38, 0.92);
   }
 
   * {
@@ -26,7 +25,7 @@
 
   body {
     margin: 0;
-    background: var(--app-bg);
+    background: radial-gradient(circle at top, #28123d 0%, #12071e 36%, #07030d 100%);
     color: var(--text-main);
     font-family: 'Manrope', 'Noto Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -36,7 +35,9 @@
 
 @layer components {
   .app-panel {
-    @apply rounded-2xl border border-slate-200/80 bg-white/80 shadow-[0_18px_55px_-36px_rgba(2,6,23,0.55)];
+    @apply rounded-2xl border shadow-[0_18px_55px_-36px_rgba(2,6,23,0.55)];
+    background-color: var(--card-bg);
+    border-color: rgba(199, 143, 236, 0.35);
   }
 
   .sales-theme {
@@ -49,21 +50,45 @@
   .sales-theme .bg-blue-50,
   .sales-theme .bg-green-50,
   .sales-theme .bg-yellow-50,
-  .sales-theme .bg-orange-50 {
-    background-color: rgba(34, 14, 50, 0.9) !important;
+  .sales-theme .bg-orange-50,
+  .sales-theme .bg-gray-50,
+  .sales-theme .bg-gray-100,
+  .sales-theme .bg-gray-200,
+  .sales-theme .bg-slate-50,
+  .sales-theme .bg-slate-100 {
+    background-color: rgba(27, 11, 41, 0.92) !important;
   }
 
-  .sales-theme .bg-purple-100 {
-    background-color: rgba(93, 38, 128, 0.45) !important;
+  .sales-theme .from-green-50,
+  .sales-theme .from-blue-50,
+  .sales-theme .from-purple-50,
+  .sales-theme .to-blue-50,
+  .sales-theme .to-purple-50,
+  .sales-theme .to-indigo-50 {
+    --tw-gradient-from: rgba(30, 13, 45, 0.95) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: rgba(18, 8, 29, 0.95) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
   }
 
+  .sales-theme table,
+  .sales-theme thead,
+  .sales-theme tbody,
+  .sales-theme tr,
+  .sales-theme th,
+  .sales-theme td {
+    background-color: transparent;
+  }
+
+  .sales-theme .border-white,
+  .sales-theme .border-gray-100,
   .sales-theme .border-gray-200,
   .sales-theme .border-gray-300,
   .sales-theme .border-indigo-200,
   .sales-theme .border-purple-300,
   .sales-theme .border-green-200,
   .sales-theme .border-yellow-300,
-  .sales-theme .border-orange-200 {
+  .sales-theme .border-orange-200,
+  .sales-theme .border-red-200 {
     border-color: rgba(199, 143, 236, 0.35) !important;
   }
 
@@ -74,7 +99,7 @@
   .sales-theme input,
   .sales-theme select,
   .sales-theme textarea {
-    background-color: rgba(20, 9, 31, 0.92);
+    background-color: rgba(20, 9, 31, 0.95);
     border-color: rgba(199, 143, 236, 0.45);
     color: #f6f0ff;
   }
@@ -84,19 +109,25 @@
     color: #b39cc9;
   }
 
-  .sales-theme .text-gray-800 {
+  .sales-theme .text-gray-900,
+  .sales-theme .text-gray-800,
+  .sales-theme .text-slate-900,
+  .sales-theme .text-slate-800 {
     color: #f7f2ff !important;
   }
 
-  .sales-theme .text-gray-700 {
+  .sales-theme .text-gray-700,
+  .sales-theme .text-slate-700 {
     color: #e7d7f9 !important;
   }
 
-  .sales-theme .text-gray-600 {
+  .sales-theme .text-gray-600,
+  .sales-theme .text-slate-600 {
     color: #d2bddf !important;
   }
 
-  .sales-theme .text-gray-500 {
+  .sales-theme .text-gray-500,
+  .sales-theme .text-slate-500 {
     color: #b8a2ca !important;
   }
 
@@ -105,21 +136,26 @@
   .sales-theme .text-blue-800,
   .sales-theme .text-green-800,
   .sales-theme .text-orange-800,
-  .sales-theme .text-yellow-800 {
+  .sales-theme .text-yellow-800,
+  .sales-theme .text-red-800 {
     color: #f2deff !important;
   }
 
   .sales-theme .text-indigo-700,
+  .sales-theme .text-purple-700,
   .sales-theme .text-purple-600,
+  .sales-theme .text-blue-600,
   .sales-theme .text-blue-500,
   .sales-theme .text-green-700,
-  .sales-theme .text-orange-600 {
+  .sales-theme .text-orange-600,
+  .sales-theme .text-red-700 {
     color: #d9b7ff !important;
   }
 
   .sales-theme .hover\:bg-gray-50:hover,
   .sales-theme .hover\:bg-purple-50:hover,
-  .sales-theme .hover\:bg-blue-50:hover {
+  .sales-theme .hover\:bg-blue-50:hover,
+  .sales-theme .hover\:bg-green-50:hover {
     background-color: rgba(65, 26, 95, 0.45) !important;
   }
 

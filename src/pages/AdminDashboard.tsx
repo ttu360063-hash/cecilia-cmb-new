@@ -2,6 +2,12 @@
 import React, { useState, useEffect } from 'react'
 import {BarChart3, Package, Users, ShoppingCart, TrendingUp, Calendar, DollarSign, Star} from 'lucide-react'
 import { lumi } from '../lib/lumi'
+import {
+  getSaleStatusBadgeClass,
+  getSaleStatusLabel,
+  listSales as listSalesApi,
+  normalizeSaleStatus,
+} from '../lib/sales'
 import toast from 'react-hot-toast'
 
 interface Product {
@@ -135,65 +141,43 @@ const AdminDashboard: React.FC = () => {
   // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase
   const loadSalesFromDatabase = async (): Promise<Sale[]> => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO Supabase...')
-      const response = await lumi.entities.sales.list({
-        sort: { date: -1 },
-        limit: 1000
-      })
-      
-      console.log('📊 RESPOSTA BRUTA DO Supabase (VENDAS):', response)
-      
-      if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
-        setDataLoadStatus(prev => ({ ...prev, sales: 'error' }))
-        return []
-      }
+      const response = await listSalesApi()
 
-      const salesData = response.list.map((sale: any) => {
-        console.log('🔍 PROCESSANDO VENDA INDIVIDUAL:', sale)
-        
-        return {
-          _id: sale._id || sale.id || '',
-          id: sale._id || sale.id || '',
-          active: sale.active !== false,
-          
-          // Dados do cliente
-          customer: {
-            name: safeString(sale.customer?.name || sale.customerName, 'Cliente não informado'),
-            phone: safeString(sale.customer?.phone || sale.customerPhone, 'Telefone não informado'),
-            email: safeString(sale.customer?.email || sale.customerEmail, ''),
-            address: safeString(sale.customer?.address || sale.customerAddress, '')
-          },
-          
-          // Itens da venda
-          items: Array.isArray(sale.items) ? sale.items.map((item: any) => ({
-            productId: safeString(item.productId, ''),
-            productName: safeString(item.productName || item.name, 'Produto não informado'),
-            quantity: safeNumber(item.quantity, 1),
-            unitPrice: safeNumber(item.unitPrice || item.price, 0),
-            total: safeNumber(item.total || (item.quantity * item.unitPrice), 0)
-          })) : [],
-          
-          // Valores e datas
-          total: safeNumber(sale.total || sale.totalValue, 0),
-          date: sale.date || sale.createdAt || new Date().toISOString(),
-          status: safeString(sale.status, 'Pendente'),
-          observations: safeString(sale.observations || sale.notes, '')
-        }
-      })
+      const salesData = (response || []).map((sale: any) => ({
+        _id: sale._id || sale.id || '',
+        id: sale.id || sale._id || '',
+        active: sale.active !== false,
+        customer: {
+          name: safeString(sale.customer?.name || sale.customerName, 'Cliente nao informado'),
+          phone: safeString(sale.customer?.phone || sale.customerPhone, 'Telefone nao informado'),
+          email: safeString(sale.customer?.email || sale.customerEmail, ''),
+          address: safeString(sale.customer?.address || sale.customerAddress, ''),
+        },
+        items: Array.isArray(sale.items)
+          ? sale.items.map((item: any) => ({
+              productId: safeString(item.productId, ''),
+              productName: safeString(item.productName || item.name, 'Produto nao informado'),
+              quantity: safeNumber(item.quantity, 1),
+              unitPrice: safeNumber(item.unitPrice || item.price, 0),
+              total: safeNumber(item.total, 0),
+            }))
+          : [],
+        total: safeNumber(sale.total ?? sale.totalValue, 0),
+        date: sale.date || sale.saleDate || new Date().toISOString(),
+        status: normalizeSaleStatus(sale.status),
+        observations: safeString(sale.observations || ''),
+      }))
 
-      console.log('✅ VENDAS PROCESSADAS FINAL:', salesData.length, salesData)
-      setDataLoadStatus(prev => ({ ...prev, sales: 'success' }))
+      setDataLoadStatus((prev) => ({ ...prev, sales: 'success' }))
       return salesData
-      
     } catch (error) {
-      console.error('❌ ERRO CRÍTICO AO CARREGAR VENDAS:', error)
-      setDataLoadStatus(prev => ({ ...prev, sales: 'error' }))
+      console.error('Erro ao carregar vendas:', error)
+      setDataLoadStatus((prev) => ({ ...prev, sales: 'error' }))
       throw error
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do Supabase
+  // Carregar clientes do Supabase
   const loadCustomersFromDatabase = async (): Promise<Customer[]> => {
     try {
       console.log('🔄 CARREGANDO CLIENTES DO Supabase...')
@@ -238,154 +222,113 @@ const AdminDashboard: React.FC = () => {
   }
 
   // 📂 CARREGAR DADOS INICIAIS DO Supabase
-  const loadAllDataFromDatabase = async () => {
+  const loadAllDataFromDatabase = async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) {
+        setLoading(true)
+      }
+
       setError(null)
-      
-      console.log('🚀 INICIANDO CARREGAMENTO DE DADOS DO Supabase...')
 
-      // Reset status
-      setDataLoadStatus({
-        products: 'loading',
-        sales: 'loading',
-        customers: 'loading'
-      })
+      if (!silent) {
+        setDataLoadStatus({
+          products: 'loading',
+          sales: 'loading',
+          customers: 'loading',
+        })
+      }
 
-      // Carregar dados em paralelo para melhor performance
       const [productsData, salesData, customersData] = await Promise.all([
         loadProductsFromDatabase(),
         loadSalesFromDatabase(),
-        loadCustomersFromDatabase()
+        loadCustomersFromDatabase(),
       ])
 
-      // Atualizar estados
       setProducts(productsData)
       setSales(salesData)
       setCustomers(customersData)
-
-      console.log('✅ TODOS OS DADOS CARREGADOS COM SUCESSO:', {
-        produtos: productsData.length,
-        vendas: salesData.length,
-        clientes: customersData.length
-      })
-      
-      // Atualizar timestamp
       setLastUpdate(new Date().toLocaleString('pt-BR'))
-      
     } catch (error) {
-      console.error('❌ ERRO CRÍTICO NO CARREGAMENTO:', error)
-      setError('Erro ao carregar dados do banco de dados Supabase')
-      toast.error('Erro ao carregar dados do banco')
+      console.error('Erro ao atualizar dashboard:', error)
+      if (!silent) {
+        setError('Erro ao carregar dados do banco de dados')
+        toast.error('Erro ao carregar dados do banco')
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
-  // Função para forçar atualização
   const forceRefresh = async () => {
-    console.log('🔄 === FORÇANDO ATUALIZAÇÃO DOS DADOS DO Supabase ===')
-    toast.info('Atualizando dados do banco...')
-    await loadAllDataFromDatabase()
+    toast.info('Atualizando dados...')
+    await loadAllDataFromDatabase(true)
     toast.success('Dados atualizados!')
   }
 
   useEffect(() => {
-    loadAllDataFromDatabase()
-    
-    // 🔄 Atualização automática a cada 10 segundos
+    loadAllDataFromDatabase(false)
+
     const intervalId = setInterval(() => {
-      console.log('🔄 Atualizando dados automaticamente...')
-      loadAllDataFromDatabase()
-    }, 10000) // 10 segundos
-    
-    // Limpar intervalo ao desmontar componente
+      loadAllDataFromDatabase(true)
+    }, 15000)
+
     return () => {
       clearInterval(intervalId)
     }
   }, [])
 
-  // Debug dos dados carregados
-  useEffect(() => {
-    console.log('🔍 === DEBUG ESTADO ATUAL (DADOS REAIS) ===')
-    console.log('Products state:', products.length, products)
-    console.log('Sales state:', sales.length, sales)
-    console.log('Customers state:', customers.length, customers)
-    console.log('Data Load Status:', dataLoadStatus)
-    console.log('Última atualização:', lastUpdate)
-    console.log('Loading:', loading)
-    console.log('Error:', error)
-  }, [products, sales, customers, dataLoadStatus, lastUpdate, loading, error])
+  const activeProducts = products.filter((product) => product.active !== false)
+  const activeSales = sales.filter((sale) => sale.active !== false)
+  const activeCustomers = customers.filter((customer) => customer.active !== false)
 
-  // Cálculos com dados reais do Supabase
-  const activeProducts = products.filter(product => product.active !== false)
-  const activeSales = sales.filter(sale => sale.active !== false)
-  const activeCustomers = customers.filter(customer => customer.active !== false)
+  const concludedSales = activeSales.filter((sale) => normalizeSaleStatus(sale.status) === 'concluida')
+  const openSales = activeSales.filter((sale) => normalizeSaleStatus(sale.status) === 'em_aberto')
+  const canceledSales = activeSales.filter((sale) => normalizeSaleStatus(sale.status) === 'cancelada')
 
   const totalProducts = activeProducts.length
-  const totalSales = activeSales.length
+  const totalSales = concludedSales.length
   const totalCustomers = activeCustomers.length
-  
-  // Cálculo de receita DIÁRIA (apenas do dia atual)
-  console.log('💰 === CALCULANDO RECEITA DIÁRIA (DIA ATUAL) ===')
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
-  const todaySales = activeSales.filter(sale => {
+
+  const todayConcludedSales = concludedSales.filter((sale) => {
     const saleDate = new Date(sale.date)
     saleDate.setHours(0, 0, 0, 0)
     return saleDate.getTime() === today.getTime()
   })
-  
-  const totalRevenue = todaySales.reduce((sum, sale) => {
-    const saleTotal = safeNumber(sale.total, 0)
-    console.log(`💰 Venda do dia ${sale._id}: R$ ${saleTotal}`)
-    return sum + saleTotal
-  }, 0)
-  
-  console.log(`📅 Total de vendas do dia: ${todaySales.length}`)
-  console.log(`💰 Receita do dia: R$ ${totalRevenue}`)
-  
-  const averageSaleValue = totalSales > 0 ? totalRevenue / totalSales : 0
-  const lowStockProducts = activeProducts.filter(product => safeNumber(product.stock, 0) <= 2).length
 
-  console.log('📊 === ESTATÍSTICAS FINAIS (DADOS REAIS) ===')
-  console.log('Total Produtos Ativos:', totalProducts)
-  console.log('Total Vendas Ativas:', totalSales)
-  console.log('Total Clientes Ativos:', totalCustomers)
-  console.log('Receita Total Calculada:', totalRevenue)
-  console.log('Valor Médio por Venda:', averageSaleValue)
-  console.log('Produtos com Estoque Baixo:', lowStockProducts)
+  const totalRevenue = concludedSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0)
+  const todayRevenue = todayConcludedSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0)
+  const averageSaleValue = concludedSales.length > 0 ? totalRevenue / concludedSales.length : 0
+  const lowStockProducts = activeProducts.filter((product) => safeNumber(product.stock, 0) <= 2).length
 
-  // Produtos mais vendidos com dados reais
-  console.log('🏆 === CALCULANDO TOP PRODUTOS (DADOS REAIS) ===')
-  const productSales = activeSales.reduce((acc, sale) => {
+  const productSales = concludedSales.reduce((acc, sale) => {
     if (sale.items && Array.isArray(sale.items)) {
-      sale.items.forEach(item => {
+      sale.items.forEach((item) => {
         if (item.productId && item.productName) {
           if (!acc[item.productId]) {
             acc[item.productId] = {
               name: item.productName,
               quantity: 0,
-              revenue: 0
+              revenue: 0,
             }
           }
-          const itemQuantity = safeNumber(item.quantity, 0)
-          const itemTotal = safeNumber(item.total, 0)
-          
-          acc[item.productId].quantity += itemQuantity
-          acc[item.productId].revenue += itemTotal
+
+          acc[item.productId].quantity += safeNumber(item.quantity, 0)
+          acc[item.productId].revenue += safeNumber(item.total, 0)
         }
       })
     }
+
     return acc
   }, {} as Record<string, { name: string; quantity: number; revenue: number }>)
 
   const topProducts = Object.entries(productSales)
-    .sort(([,a], [,b]) => (b.quantity || 0) - (a.quantity || 0))
+    .sort(([, a], [, b]) => (b.quantity || 0) - (a.quantity || 0))
     .slice(0, 5)
-
-  console.log('🏆 Top Produtos Calculados (Dados Reais):', topProducts)
 
   // Vendas recentes com dados reais
   console.log('📅 === CALCULANDO VENDAS RECENTES (DADOS REAIS) ===')
@@ -472,12 +415,6 @@ const AdminDashboard: React.FC = () => {
               >
                 Tentar Novamente
               </button>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Recarregar Página
-              </button>
             </div>
           </div>
         </div>
@@ -509,10 +446,10 @@ const AdminDashboard: React.FC = () => {
         {/* Status de carregamento com dados reais */}
         <div className="mt-3 space-x-2">
           <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block">
-            ✅ Produtos: {totalProducts} | Vendas: {totalSales} | Clientes: {totalCustomers}
+            Produtos: {totalProducts} | Concluidas: {totalSales} | Em aberto: {openSales.length} | Canceladas: {canceledSales.length} | Clientes: {totalCustomers}
           </span>
           <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">
-            💰 Receita: R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            Receita (concluidas): R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
           {lastUpdate && (
             <span className="text-xs text-gray-600 bg-gray-50 px-3 py-1 rounded-full inline-block">
@@ -570,7 +507,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="space-y-1">
             <h3 className="text-xl sm:text-2xl font-bold text-gray-800">{totalSales}</h3>
-            <p className="text-xs sm:text-sm text-gray-600 font-medium">Vendas Realizadas</p>
+            <p className="text-xs sm:text-sm text-gray-600 font-medium">Vendas Concluidas</p>
             <p className="text-xs text-green-600 font-medium">
               Média: R$ {averageSaleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
@@ -610,7 +547,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="space-y-1">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-              R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {todayRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h3>
             <p className="text-xs sm:text-sm text-gray-600 font-medium">Receita Diária (Hoje)</p>
           </div>
@@ -736,12 +673,8 @@ const AdminDashboard: React.FC = () => {
                     <span className="text-xs text-gray-500">
                       {new Date(sale.date).toLocaleDateString('pt-BR')}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      sale.status === 'Concluída' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {sale.status}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getSaleStatusBadgeClass(sale.status)}`}>
+                      {getSaleStatusLabel(sale.status)}
                     </span>
                   </div>
                   <h4 className="text-sm font-semibold text-gray-800 mb-1">
@@ -813,12 +746,8 @@ const AdminDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="py-3 px-2">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              sale.status === 'Concluída' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {sale.status}
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSaleStatusBadgeClass(sale.status)}`}>
+                              {getSaleStatusLabel(sale.status)}
                             </span>
                           </td>
                         </tr>

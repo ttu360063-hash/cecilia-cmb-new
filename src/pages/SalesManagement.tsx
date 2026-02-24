@@ -1,9 +1,18 @@
 
 import React, { useState, useEffect } from 'react'
-import {ShoppingCart, Plus, Eye, Trash2, Search, Filter, Calendar, DollarSign, User, Package, Download, Save, RefreshCw, Database, UserPlus, X, Phone, Mail, MapPin, Minus, Edit, FileText, Image} from 'lucide-react'
+import {ShoppingCart, Plus, Eye, Trash2, Search, Filter, Calendar, DollarSign, User, Package, Download, RefreshCw, Database, UserPlus, X, Phone, Mail, MapPin, Minus, Edit, FileText, Image} from 'lucide-react'
 import { generateSalePDF, generateSaleImage } from '../utils/pdfGenerator'
 
 import { lumi } from '../lib/lumi'
+import {
+  cancelSale as cancelSaleApi,
+  createSale as createSaleApi,
+  getSaleStatusBadgeClass,
+  getSaleStatusLabel,
+  listSales as listSalesApi,
+  normalizeSaleStatus,
+  updateSale as updateSaleApi,
+} from '../lib/sales'
 import toast from 'react-hot-toast'
 
 interface Product {
@@ -62,6 +71,11 @@ interface Sale {
   active?: boolean
   saleNumber?: number
   paymentMethod?: string
+  sellerName?: string
+  customerId?: string | null
+  editHistory?: Array<Record<string, any>>
+  canceledAt?: string | null
+  cancelReason?: string | null
 }
 
 interface NewSaleItem {
@@ -83,6 +97,9 @@ interface NewSale {
   total: number
   date: string
   observations?: string
+  sellerName?: string
+  customerId?: string | null
+  status?: string
 }
 
 // 🛡️ FUNÇÕES DEFENSIVAS ULTRA-ROBUSTAS
@@ -135,38 +152,6 @@ const generateSaleNumberFromIndex = (index: number): string => {
 }
 
 // 🔢 FUNÇÃO PARA OBTER PRÓXIMO NÚMERO DE VENDA DO BANCO (para criação)
-const getNextSaleNumber = async (): Promise<number> => {
-  try {
-    console.log('🔢 Obtendo próximo número de venda do banco...')
-    
-    // Buscar todas as vendas ordenadas por saleNumber decrescente
-    const response = await lumi.entities.sales.list({
-      limit: 1,
-      sort: { saleNumber: -1 }
-    })
-    
-    if (response.list && response.list.length > 0 && response.list[0].saleNumber) {
-      const lastNumber = response.list[0].saleNumber
-      console.log(`📊 Último número no banco: ${lastNumber}`)
-      return lastNumber + 1
-    }
-    
-    // Se não houver vendas com saleNumber, contar total de vendas
-    const allSalesResponse = await lumi.entities.sales.list({
-      limit: 10000
-    })
-    const totalSales = allSalesResponse.list?.length || 0
-    console.log(`📊 Total de vendas no banco: ${totalSales}`)
-    return totalSales + 1
-    
-  } catch (error) {
-    console.error('❌ Erro ao obter próximo número de venda:', error)
-    // Fallback: usar timestamp
-    return Date.now()
-  }
-}
-
-// 📊 FUNÇÃO CORRIGIDA PARA CALCULAR TOTAL DE PRODUTOS NA VENDA
 const calculateTotalItems = (items: any[]): number => {
   console.log('🔍 CALCULANDO TOTAL DE ITENS:', items)
   
@@ -204,7 +189,7 @@ const SalesManagement: React.FC = () => {
   const [filteredSales, setFilteredSales] = useState<Sale[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [sortOrder, setSortOrder] = useState('date_asc') // 'date_asc', 'date_desc', 'em_andamento', 'finalizada'
+  const [sortOrder, setSortOrder] = useState('date_desc')
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('') // Novo filtro de forma de pagamento
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [showDetails, setShowDetails] = useState(false)
@@ -243,6 +228,7 @@ const SalesManagement: React.FC = () => {
   const [showEditSaleModal, setShowEditSaleModal] = useState(false)
   const [editingSale, setEditingSale] = useState<Sale | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
+  const [downloadSale, setDownloadSale] = useState<Sale | null>(null)
 
   // Estados para confirmar adição de produto duplicado
   const [showDuplicateProductModal, setShowDuplicateProductModal] = useState(false)
@@ -251,101 +237,16 @@ const SalesManagement: React.FC = () => {
   // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase COM CORREÇÃO DE DADOS E ORDENAÇÃO
   const loadSalesFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO Supabase...')
-      const response = await lumi.entities.sales.list({
-        sort: { createdAt: 1 }, // Ordenar por data de criação (ordem cronológica crescente)
-        limit: 1000 // Limitar carregamento inicial para melhor performance
-      })
-      
-      console.log('📊 RESPOSTA BRUTA DO Supabase (VENDAS):', response)
-      
-      if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
-        setSales([])
-        return []
-      }
-
-      const salesData = response.list.map((sale: any, index: number) => {
-        console.log('🔍 PROCESSANDO VENDA INDIVIDUAL:', sale)
-        console.log('📦 ITENS DA VENDA:', sale.items)
-        console.log('📦 TIPO DE ITEMS:', typeof sale.items, 'É Array?', Array.isArray(sale.items))
-        console.log('📦 TODAS AS CHAVES DO OBJETO VENDA:', Object.keys(sale))
-        
-        // 🛡️ CORREÇÃO CRÍTICA: Garantir estrutura correta dos dados
-        const processedSale = {
-          _id: sale._id || sale.id || '',
-          id: sale._id || sale.id || '',
-          active: sale.active !== false,
-          
-          // 🔧 CORREÇÃO: Dados do cliente
-          customer: {
-            name: safeString(sale.customer?.name || sale.customerName, 'Cliente não informado'),
-            phone: safeString(sale.customer?.phone || sale.customerPhone, 'Telefone não informado'),
-            email: safeString(sale.customer?.email || sale.customerEmail, ''),
-            address: safeString(sale.customer?.address || sale.customerAddress, '')
-          },
-          
-          // 🔧 CORREÇÃO CRÍTICA: Itens da venda com validação ULTRA-ROBUSTA
-          // Tentar múltiplos nomes de campo possíveis do Supabase
-          items: (() => {
-            // Tentar encontrar o array de items em diferentes campos possíveis
-            const itemsArray = sale.items || sale.products || sale.saleItems || sale.vendaItems || []
-            
-            console.log('🔍 TENTANDO CARREGAR ITEMS DE:', {
-              'sale.items': sale.items,
-              'sale.products': sale.products,
-              'sale.saleItems': sale.saleItems,
-              'itemsArray escolhido': itemsArray,
-              'É array?': Array.isArray(itemsArray),
-              'Tamanho': itemsArray?.length || 0
-            })
-            
-            if (!Array.isArray(itemsArray)) {
-              console.warn('⚠️ ITEMS NÃO É ARRAY! Retornando vazio.')
-              return []
-            }
-            
-            return itemsArray.map((item: any) => {
-              const processedItem = {
-                productId: safeString(item.productId || item.product_id || item.id, ''),
-                productName: safeString(item.productName || item.product_name || item.name || item.productname, 'Produto não informado'),
-                quantity: safeNumber(item.quantity || item.qty || item.quantidade, 1),
-                unitPrice: safeNumber(item.unitPrice || item.unit_price || item.price || item.preco, 0),
-                total: safeNumber(item.total || item.totalPrice || item.total_price || (safeNumber(item.quantity, 1) * safeNumber(item.unitPrice || item.price, 0)), 0)
-              }
-              console.log('📦 ITEM PROCESSADO:', processedItem)
-              return processedItem
-            })
-          })(),
-          
-          // 🔧 CORREÇÃO: Valores e datas
-          total: safeNumber(sale.total || sale.totalValue, 0),
-          date: sale.date || sale.createdAt || new Date().toISOString(),
-          status: safeString(sale.status, 'Pendente'),
-          observations: safeString(sale.observations || sale.notes, ''),
-          
-          // 💳 CORREÇÃO: Forma de pagamento (necessário para o filtro funcionar)
-          paymentMethod: safeString(sale.paymentMethod, '')
-        }
-
-        // 🔍 DEBUG: Verificar quantidade total calculada
-        const totalItems = calculateTotalItems(processedSale.items)
-        console.log(`✅ VENDA PROCESSADA - ID: ${processedSale._id} - Total Itens: ${totalItems}`)
-        
-        return processedSale
-      })
-
-      console.log('✅ VENDAS PROCESSADAS FINAL:', salesData.length, salesData)
-      setSales(salesData)
-      return salesData
-      
+      const salesData = await listSalesApi()
+      setSales(salesData as Sale[])
+      return salesData as Sale[]
     } catch (error) {
-      console.error('❌ ERRO CRÍTICO AO CARREGAR VENDAS:', error)
+      console.error('Erro ao carregar vendas:', error)
       throw error
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar clientes do Supabase
+  // Carregar clientes do Supabase
   const loadCustomersFromDatabase = async () => {
     try {
       console.log('🔄 CARREGANDO CLIENTES DO Supabase...')
@@ -499,51 +400,24 @@ const SalesManagement: React.FC = () => {
       }
 
       if (statusFilter) {
-        console.log('🔍 Aplicando filtro de status:', statusFilter)
-        filtered = filtered.filter(sale => safeString(sale?.status, '') === statusFilter)
-        console.log('📊 Vendas após filtro de status:', filtered.length)
+        filtered = filtered.filter((sale) => normalizeSaleStatus(safeString(sale?.status, '')) === statusFilter)
       }
 
-      // Filtro de forma de pagamento
       if (paymentMethodFilter) {
-        console.log('🔍 Aplicando filtro de forma de pagamento:', paymentMethodFilter)
-        filtered = filtered.filter(sale => safeString(sale?.paymentMethod, '') === paymentMethodFilter)
-        console.log('📊 Vendas após filtro de forma de pagamento:', filtered.length)
+        filtered = filtered.filter((sale) => safeString(sale?.paymentMethod, '') === paymentMethodFilter)
       }
 
-      // Aplicar ordenação conforme filtro selecionado
-      console.log('🔀 Aplicando ordenação:', sortOrder)
       if (sortOrder === 'date_asc') {
-        // Data mais antiga para mais nova
-        filtered = [...filtered].sort((a, b) => {
-          const dateA = new Date(a.date).getTime()
-          const dateB = new Date(b.date).getTime()
-          return dateA - dateB
-        })
+        filtered = [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       } else if (sortOrder === 'date_desc') {
-        // Data mais nova para mais antiga
-        filtered = [...filtered].sort((a, b) => {
-          const dateA = new Date(a.date).getTime()
-          const dateB = new Date(b.date).getTime()
-          return dateB - dateA
-        })
-      } else if (sortOrder === 'em_andamento') {
-        // Apenas vendas em andamento
-        filtered = filtered.filter(sale => 
-          safeString(sale?.status, '').toLowerCase().includes('andamento') ||
-          safeString(sale?.status, '') === 'Em Andamento' ||
-          safeString(sale?.status, '') === 'Pendente'
-        )
-      } else if (sortOrder === 'finalizada') {
-        // Apenas vendas finalizadas
-        filtered = filtered.filter(sale => 
-          safeString(sale?.status, '').toLowerCase().includes('conclu') ||
-          safeString(sale?.status, '').toLowerCase().includes('finaliz') ||
-          safeString(sale?.status, '') === 'Concluída' ||
-          safeString(sale?.status, '') === 'Entregue'
-        )
+        filtered = [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      } else if (sortOrder === 'status_open') {
+        filtered = filtered.filter((sale) => normalizeSaleStatus(safeString(sale?.status, '')) === 'em_aberto')
+      } else if (sortOrder === 'status_done') {
+        filtered = filtered.filter((sale) => normalizeSaleStatus(safeString(sale?.status, '')) === 'concluida')
+      } else if (sortOrder === 'status_canceled') {
+        filtered = filtered.filter((sale) => normalizeSaleStatus(safeString(sale?.status, '')) === 'cancelada')
       }
-      console.log('📊 Vendas após ordenação:', filtered.length)
 
       console.log('✅ VENDAS FILTRADAS FINAL:', filtered.length, filtered)
       setFilteredSales(filtered)
@@ -861,6 +735,7 @@ const SalesManagement: React.FC = () => {
     console.log('✏️ ABRINDO EDIÇÃO DA VENDA:', sale._id)
     setEditingSale({
       ...sale,
+      status: normalizeSaleStatus(sale.status),
       date: sale.date.split('T')[0] // Converter para formato de input date
     })
     setShowEditSaleModal(true)
@@ -871,53 +746,66 @@ const SalesManagement: React.FC = () => {
     if (!editingSale) return
 
     if (!editingSale.customer.name.trim()) {
-      toast.error('Nome do cliente é obrigatório!')
+      toast.error('Nome do cliente e obrigatorio!')
       return
     }
-    
+
     if (!editingSale.customer.phone.trim()) {
-      toast.error('Telefone do cliente é obrigatório!')
+      toast.error('Telefone do cliente e obrigatorio!')
       return
     }
-    
+
     if (editingSale.items.length === 0) {
       toast.error('A venda deve ter pelo menos um produto!')
       return
     }
 
     try {
-      const updatedSaleData = {
-        customer: editingSale.customer,
-        items: editingSale.items,
-        total: safeNumber(editingSale.total, 0),
-        date: new Date(editingSale.date).toISOString(),
-        status: editingSale.status,
-        observations: editingSale.observations,
-        paymentMethod: editingSale.paymentMethod,
-        saleNumber: editingSale.saleNumber, // Manter número original
-        active: true
-      }
+      const normalizedItems = editingSale.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: Math.max(1, Math.floor(safeNumber(item.quantity, 1))),
+        unitPrice: safeNumber(item.unitPrice, 0),
+        total: safeNumber(item.total, safeNumber(item.quantity, 1) * safeNumber(item.unitPrice, 0)),
+      }))
 
-      console.log('💾 ATUALIZANDO VENDA NO Supabase:', updatedSaleData)
-      
-      await lumi.entities.sales.update(editingSale._id || editingSale.id || '', updatedSaleData)
-      
-      // Recarregar vendas
-      await loadSalesFromDatabase()
-      
+      const subtotal = normalizedItems.reduce((sum, item) => sum + safeNumber(item.total, 0), 0)
+      const saleId = editingSale._id || editingSale.id || ''
+
+      await updateSaleApi(saleId, {
+        customerId: editingSale.customerId || null,
+        customer: editingSale.customer,
+        customerName: editingSale.customer.name,
+        customerPhone: editingSale.customer.phone,
+        customerEmail: editingSale.customer.email || '',
+        customerAddress: editingSale.customer.address || '',
+        sellerName: editingSale.sellerName || '',
+        items: normalizedItems,
+        products: normalizedItems,
+        subtotalValue: subtotal,
+        total: safeNumber(editingSale.total, subtotal),
+        totalValue: safeNumber(editingSale.total, subtotal),
+        date: new Date(editingSale.date).toISOString(),
+        saleDate: new Date(editingSale.date).toISOString(),
+        status: normalizeSaleStatus(editingSale.status),
+        observations: editingSale.observations || '',
+        paymentMethod: editingSale.paymentMethod || '',
+        saleNumber: editingSale.saleNumber,
+        editReason: 'Edicao manual da venda',
+      })
+
+      await Promise.all([loadSalesFromDatabase(), loadProductsFromDatabase()])
+
       toast.success('Venda atualizada com sucesso!')
-      console.log('✅ VENDA ATUALIZADA NO Supabase:', editingSale._id)
-      
       setShowEditSaleModal(false)
       setEditingSale(null)
-      
     } catch (error) {
-      console.error('❌ ERRO AO ATUALIZAR VENDA:', error)
+      console.error('Erro ao atualizar venda:', error)
       toast.error('Erro ao atualizar venda no banco de dados')
     }
   }
 
-  // ADICIONAR PRODUTO À VENDA EM EDIÇÃO
+  // ADICIONAR PRODUTO A VENDA EM EDICAO
   const handleAddProductToEdit = () => {
     if (!selectedProduct || !editingSale) {
       toast.error('Selecione um produto primeiro!')
@@ -1062,85 +950,99 @@ const SalesManagement: React.FC = () => {
 
   // 🗑️ EXCLUIR VENDA DO Supabase
   const handleDeleteSale = async (saleId: string) => {
-    const saleToDelete = sales.find(s => (s._id || s.id) === saleId)
-    if (!saleToDelete) {
-      toast.error('Venda não encontrada!')
+    const saleToCancel = sales.find((sale) => (sale._id || sale.id) === saleId)
+    if (!saleToCancel) {
+      toast.error('Venda nao encontrada!')
       return
     }
 
-    const confirmMessage = `⚠️ EXCLUIR VENDA?\n\nVenda #${saleId}\nCliente: ${saleToDelete.customer.name}\nTotal: R$ ${safeFormatCurrency(saleToDelete.total)}`
-    
-    if (window.confirm(confirmMessage)) {
-      try {
-        await lumi.entities.sales.delete(saleId)
-        
-        // Atualizar lista local
-        const updatedSales = sales.filter(s => (s._id || s.id) !== saleId)
-        setSales(updatedSales)
-        
-        toast.success('Venda excluída com sucesso!')
-        console.log('✅ VENDA EXCLUÍDA DO Supabase:', saleId)
-      } catch (error) {
-        console.error('❌ ERRO AO EXCLUIR VENDA:', error)
-        toast.error('Erro ao excluir venda do banco de dados')
-      }
+    const normalizedStatus = normalizeSaleStatus(saleToCancel.status)
+    if (normalizedStatus === 'cancelada') {
+      toast('Essa venda ja esta cancelada.')
+      return
+    }
+
+    const reason = window.prompt('Informe o motivo do cancelamento (opcional):', 'Cancelada manualmente') || ''
+
+    if (!window.confirm(`Cancelar a venda #${saleToCancel.saleNumber ? String(saleToCancel.saleNumber).padStart(4, '0') : saleId}?`)) {
+      return
+    }
+
+    try {
+      await cancelSaleApi(saleId, reason)
+      await Promise.all([loadSalesFromDatabase(), loadProductsFromDatabase()])
+      toast.success('Venda cancelada com sucesso!')
+    } catch (error) {
+      console.error('Erro ao cancelar venda:', error)
+      toast.error('Erro ao cancelar venda')
     }
   }
 
-  // 💾 SALVAR NOVA VENDA NO Supabase
   const handleSaveNewSale = async () => {
     if (!newSale.customer.name.trim()) {
-      toast.error('Nome do cliente é obrigatório!')
+      toast.error('Nome do cliente e obrigatorio!')
       return
     }
-    
+
     if (!newSale.customer.phone.trim()) {
-      toast.error('Telefone do cliente é obrigatório!')
+      toast.error('Telefone do cliente e obrigatorio!')
       return
     }
-    
+
     if (newSale.items.length === 0) {
       toast.error('Adicionar pelo menos um produto!')
       return
     }
 
     try {
-      // 🔢 OBTER PRÓXIMO NÚMERO SEQUENCIAL
-      const nextNumber = await getNextSaleNumber()
-      console.log(`🆕 Próximo número de venda: ${nextNumber}`)
-      
-      const newSaleData = {
-        customer: newSale.customer,
-        items: newSale.items,
-        total: safeNumber(newSale.total, 0),
-        date: new Date(newSale.date).toISOString(), // Usar data selecionada pelo usuário
-        status: 'Pendente',
-        observations: newSale.observations,
-        saleNumber: nextNumber, // 🔥 SALVAR NÚMERO PERMANENTE
-        active: true
-      }
+      const normalizedItems = newSale.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: Math.max(1, Math.floor(safeNumber(item.quantity, 1))),
+        unitPrice: safeNumber(item.unitPrice, 0),
+        total: safeNumber(item.total, safeNumber(item.quantity, 1) * safeNumber(item.unitPrice, 0)),
+      }))
 
-      console.log('💾 SALVANDO NOVA VENDA NO Supabase:', newSaleData)
-      
-      const createdSale = await lumi.entities.sales.create(newSaleData)
-      
-      // Recarregar todas as vendas para garantir ordenação correta
-      await loadSalesFromDatabase()
-      
-      toast.success(`Venda #${String(nextNumber).padStart(4, '0')} registrada com sucesso!`)
-      console.log('✅ VENDA SALVA NO Supabase:', createdSale._id)
-      
+      const subtotal = normalizedItems.reduce((sum, item) => sum + safeNumber(item.total, 0), 0)
+
+      const createdSale = await createSaleApi({
+        customerId: newSale.customerId || null,
+        customer: newSale.customer,
+        customerName: newSale.customer.name,
+        customerPhone: newSale.customer.phone,
+        customerEmail: newSale.customer.email || '',
+        customerAddress: newSale.customer.address || '',
+        sellerName: newSale.sellerName || '',
+        items: normalizedItems,
+        products: normalizedItems,
+        subtotalValue: subtotal,
+        total: safeNumber(newSale.total, subtotal),
+        totalValue: safeNumber(newSale.total, subtotal),
+        date: new Date(newSale.date).toISOString(),
+        saleDate: new Date(newSale.date).toISOString(),
+        status: normalizeSaleStatus(newSale.status || 'em_aberto'),
+        observations: newSale.observations || '',
+      })
+
+      await Promise.all([loadSalesFromDatabase(), loadProductsFromDatabase()])
+
+      const saleNumberText = createdSale.saleNumber
+        ? String(createdSale.saleNumber).padStart(4, '0')
+        : '----'
+
+      toast.success(`Venda #${saleNumberText} registrada com sucesso!`)
+
       setShowNewSaleModal(false)
       setNewSale({
         customer: { name: '', phone: '', email: '', address: '' },
         items: [],
         total: 0,
         date: new Date().toISOString().split('T')[0],
-        observations: ''
+        observations: '',
+        status: 'em_aberto',
       })
-      
     } catch (error) {
-      console.error('❌ ERRO AO SALVAR VENDA:', error)
+      console.error('Erro ao salvar venda:', error)
       toast.error('Erro ao salvar venda no banco de dados')
     }
   }
@@ -1234,6 +1136,18 @@ const SalesManagement: React.FC = () => {
     generateSaleImage(saleWithNumber, customers)
   }
 
+  const handleDownloadOption = (format: 'pdf' | 'image') => {
+    if (!downloadSale) return
+
+    if (format === 'pdf') {
+      handleGeneratePDF(downloadSale)
+    } else {
+      handleGenerateImage(downloadSale)
+    }
+
+    setDownloadSale(null)
+  }
+
   const handleOpenCustomerSelector = () => {
     setShowCustomerSelector(true)
     setCustomerSearchTerm('')
@@ -1253,10 +1167,12 @@ const SalesManagement: React.FC = () => {
           email: selectedCustomer.email || '',
           address: selectedCustomer.address
         },
+        customerId: selectedCustomer._id || selectedCustomer.id || null,
         items: [],
         total: 0,
         date: new Date().toISOString().split('T')[0],
-        observations: ''
+        observations: '',
+        status: 'em_aberto',
       })
       
       setShowCustomerSelector(false)
@@ -1268,10 +1184,12 @@ const SalesManagement: React.FC = () => {
   const handleOpenNewSale = () => {
     setNewSale({
       customer: { name: '', phone: '', email: '', address: '' },
+      customerId: null,
       items: [],
       total: 0,
       date: new Date().toISOString().split('T')[0],
-      observations: ''
+      observations: '',
+      status: 'em_aberto',
     })
     setShowNewSaleModal(true)
   }
@@ -1280,10 +1198,12 @@ const SalesManagement: React.FC = () => {
     setShowNewSaleModal(false)
     setNewSale({
       customer: { name: '', phone: '', email: '', address: '' },
+      customerId: null,
       items: [],
       total: 0,
       date: new Date().toISOString().split('T')[0],
-      observations: ''
+      observations: '',
+      status: 'em_aberto',
     })
   }
 
@@ -1294,27 +1214,33 @@ const SalesManagement: React.FC = () => {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Concluída': return 'bg-green-100 text-green-800'
-      case 'Em Andamento': return 'bg-yellow-100 text-yellow-800'
-      case 'Pendente': return 'bg-orange-100 text-orange-800'
-      case 'Cancelada': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
+  const getStatusColor = (status: string) => getSaleStatusBadgeClass(status)
 
-  // Estatísticas - CORREÇÃO CRÍTICA: Contagem correta de produtos ativos
-  const activeSales = (sales || []).filter(s => s.active !== false)
-  const activeCustomers = (customers || []).filter(c => c.active !== false)
-  const activeProducts = (products || []).filter(p => p && p.active !== false)
+  const activeSales = (sales || []).filter((sale) => sale.active !== false)
+  const activeCustomers = (customers || []).filter((customer) => customer.active !== false)
+  const activeProducts = (products || []).filter((product) => product && product.active !== false)
+
+  const statusCounters = activeSales.reduce(
+    (acc, sale) => {
+      const normalized = normalizeSaleStatus(sale.status)
+      if (normalized === 'concluida') acc.concluidas += 1
+      if (normalized === 'em_aberto') acc.abertas += 1
+      if (normalized === 'cancelada') acc.canceladas += 1
+      return acc
+    },
+    { concluidas: 0, abertas: 0, canceladas: 0 },
+  )
+
   const stats = {
     total: activeSales.length,
-    concluidas: activeSales.filter(s => s.status === 'Concluída').length,
-    pendentes: activeSales.filter(s => s.status === 'Pendente').length,
-    totalValue: activeSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0),
+    concluidas: statusCounters.concluidas,
+    abertas: statusCounters.abertas,
+    canceladas: statusCounters.canceladas,
+    totalValue: activeSales
+      .filter((sale) => normalizeSaleStatus(sale.status) === 'concluida')
+      .reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0),
     totalCustomers: activeCustomers.length,
-    totalProducts: activeProducts.length
+    totalProducts: activeProducts.length,
   }
 
   if (loading) {
@@ -1344,12 +1270,6 @@ const SalesManagement: React.FC = () => {
                 className="bg-red-600 text-white px-4 py-2 rounded mr-2 hover:bg-red-700"
               >
                 Tentar Novamente
-              </button>
-              <button 
-                onClick={() => window.location.reload()}
-                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-              >
-                Recarregar Página
               </button>
             </div>
           </div>
@@ -1543,8 +1463,23 @@ const SalesManagement: React.FC = () => {
             >
               <option value="date_asc">📅 Mais Antiga → Mais Nova</option>
               <option value="date_desc">📅 Mais Nova → Mais Antiga</option>
-              <option value="em_andamento">⏳ Em Andamento</option>
-              <option value="finalizada">✅ Finalizada</option>
+              <option value="status_open">Em aberto</option>
+              <option value="status_done">Concluida</option>
+              <option value="status_canceled">Cancelada</option>
+            </select>
+          </div>
+
+          <div className="w-full sm:w-56 relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base appearance-none bg-white"
+            >
+              <option value="">Todos os status</option>
+              <option value="em_aberto">Em aberto</option>
+              <option value="concluida">Concluida</option>
+              <option value="cancelada">Cancelada</option>
             </select>
           </div>
 
@@ -1617,11 +1552,12 @@ const SalesManagement: React.FC = () => {
               {filteredSales.map((sale, index) => {
                 const totalItems = calculateTotalItems(sale.items)
                 const productTypes = calculateProductTypes(sale.items)
+                const isCanceled = normalizeSaleStatus(sale.status) === 'cancelada'
                 
                 console.log(`🔍 MOBILE CARD - Venda ${sale._id}: ${totalItems} itens, ${productTypes} tipos`)
                 
                 return (
-                  <div key={sale._id || sale.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div key={sale._id || sale.id} className={`rounded-lg p-4 transition-shadow ${isCanceled ? 'border border-rose-400/40 bg-rose-950/20' : 'border border-gray-200 hover:shadow-md'}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2 mb-1">
@@ -1629,7 +1565,7 @@ const SalesManagement: React.FC = () => {
                             #{sale.saleNumber ? String(sale.saleNumber).padStart(4, '0') : generateSaleNumberFromIndex(index)}
                           </span>
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(sale.status)}`}>
-                            {sale.status}
+                            {getSaleStatusLabel(sale.status)}
                           </span>
                         </div>
                         <h3 className="text-sm font-semibold text-gray-800 mb-1">
@@ -1657,25 +1593,23 @@ const SalesManagement: React.FC = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleGeneratePDF(sale)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Baixar PDF"
+                          onClick={() => setDownloadSale(sale)}
+                          className="p-2 text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                          title="Baixar comprovante"
                         >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleGenerateImage(sale)}
-                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Baixar JPG"
-                        >
-                          <Image className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteSale(sale._id || sale.id || '')}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir"
+                          disabled={isCanceled}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isCanceled
+                              ? 'text-rose-300/40 cursor-not-allowed'
+                              : 'text-rose-300 hover:bg-rose-500/10'
+                          }`}
+                          title={isCanceled ? 'Venda ja cancelada' : 'Cancelar venda'}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -1728,11 +1662,12 @@ const SalesManagement: React.FC = () => {
                     {filteredSales.map((sale, index) => {
                       const totalItems = calculateTotalItems(sale.items)
                       const productTypes = calculateProductTypes(sale.items)
+                      const isCanceled = normalizeSaleStatus(sale.status) === 'cancelada'
                       
                       console.log(`🔍 DESKTOP ROW - Venda ${sale._id}: ${totalItems} itens, ${productTypes} tipos`)
                       
                       return (
-                        <tr key={sale._id || sale.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <tr key={sale._id || sale.id} className={`border-b ${isCanceled ? 'border-rose-400/35 bg-rose-950/10' : 'border-gray-100 hover:bg-gray-50'}`}>
                           <td className="py-3 px-4">
                             <span className="text-sm font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
                               #{sale.saleNumber ? String(sale.saleNumber).padStart(4, '0') : generateSaleNumberFromIndex(index)}
@@ -1770,7 +1705,7 @@ const SalesManagement: React.FC = () => {
                           </td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(sale.status)}`}>
-                              {sale.status}
+                              {getSaleStatusLabel(sale.status)}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -1790,26 +1725,24 @@ const SalesManagement: React.FC = () => {
                                 <Edit className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleGeneratePDF(sale)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Baixar PDF"
-                              >
-                                <FileText className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleGenerateImage(sale)}
-                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Baixar JPG"
-                              >
-                                <Image className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSale(sale._id || sale.id || '')}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                          onClick={() => setDownloadSale(sale)}
+                          className="p-2 text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                          title="Baixar comprovante"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSale(sale._id || sale.id || '')}
+                          disabled={isCanceled}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isCanceled
+                              ? 'text-rose-300/40 cursor-not-allowed'
+                              : 'text-rose-300 hover:bg-rose-500/10'
+                          }`}
+                          title={isCanceled ? 'Venda ja cancelada' : 'Cancelar venda'}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                             </div>
                           </td>
                         </tr>
@@ -2575,7 +2508,7 @@ const SalesManagement: React.FC = () => {
                   <Calendar className="w-4 h-4 mr-2" />
                   Informações da Venda
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
                     <input
@@ -2599,10 +2532,10 @@ const SalesManagement: React.FC = () => {
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                     >
-                      <option value="Pendente">Pendente</option>
-                      <option value="Em Andamento">Em Andamento</option>
-                      <option value="Concluída">Concluída</option>
-                      <option value="Cancelada">Cancelada</option>
+                      <option value="em_aberto">Em aberto</option>
+                      <option value="concluida">Concluida</option>
+                      <option value="cancelada">Cancelada</option>
+                      
                     </select>
                   </div>
                   <div>
@@ -2622,6 +2555,21 @@ const SalesManagement: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
+                    <input
+                      type="text"
+                      value={editingSale.sellerName || ''}
+                      onChange={(e) =>
+                        setEditingSale({
+                          ...editingSale,
+                          sellerName: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      placeholder="Nome do vendedor"
+                    />
                   </div>
                 </div>
               </div>
@@ -2760,6 +2708,40 @@ const SalesManagement: React.FC = () => {
         </div>
       )}
 
+
+      {downloadSale && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]">
+          <div className="w-full max-w-md rounded-2xl border border-fuchsia-500/35 bg-[#12081e] p-6 shadow-[0_0_40px_rgba(219,39,119,0.25)]">
+            <h3 className="text-lg font-semibold text-fuchsia-100 mb-2">Baixar Comprovante</h3>
+            <p className="text-sm text-fuchsia-200/80 mb-5">
+              Venda #{downloadSale.saleNumber ? String(downloadSale.saleNumber).padStart(4, '0') : '----'}
+            </p>
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={() => handleDownloadOption('pdf')}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-500"
+              >
+                <FileText className="w-4 h-4" />
+                Baixar como PDF
+              </button>
+              <button
+                onClick={() => handleDownloadOption('image')}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-500"
+              >
+                <Image className="w-4 h-4" />
+                Baixar como Imagem
+              </button>
+              <button
+                onClick={() => setDownloadSale(null)}
+                className="w-full rounded-lg border border-fuchsia-500/35 px-4 py-3 text-sm font-semibold text-fuchsia-100 hover:bg-fuchsia-500/10"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Detalhes */}
       {showDetails && selectedSale && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -2813,24 +2795,34 @@ const SalesManagement: React.FC = () => {
                   <Download className="w-4 h-4 mr-2" />
                   Informações da Venda
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Numero:</span>
+                    <span className="ml-2 font-medium text-gray-800">
+                      #{selectedSale.saleNumber ? String(selectedSale.saleNumber).padStart(4, '0') : '----'}
+                    </span>
+                  </div>
                   <div>
                     <span className="text-gray-600">Data:</span>
-                    <span className="ml-2 font-medium text-gray-800">
-                      {safeDate(selectedSale.date)}
-                    </span>
+                    <span className="ml-2 font-medium text-gray-800">{safeDate(selectedSale.date)}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Status:</span>
                     <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedSale.status)}`}>
-                      {selectedSale.status}
+                      {getSaleStatusLabel(selectedSale.status)}
                     </span>
                   </div>
                   <div>
+                    <span className="text-gray-600">Vendedor:</span>
+                    <span className="ml-2 font-medium text-gray-800">{safeString(selectedSale.sellerName, 'Nao informado')}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Pagamento:</span>
+                    <span className="ml-2 font-medium text-gray-800">{safeString(selectedSale.paymentMethod, 'Nao informado')}</span>
+                  </div>
+                  <div>
                     <span className="text-gray-600">Total:</span>
-                    <span className="ml-2 font-bold text-green-600">
-                      R$ {safeFormatCurrency(selectedSale.total)}
-                    </span>
+                    <span className="ml-2 font-bold text-green-600">R$ {safeFormatCurrency(selectedSale.total)}</span>
                   </div>
                 </div>
               </div>

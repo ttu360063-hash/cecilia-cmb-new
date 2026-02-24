@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, FileText, Plus, Search, ShoppingCart, Trash2, UserPlus, Users } from 'lucide-react';
 import { lumi } from '../lib/lumi';
+import { createSale } from '../lib/sales';
 import toast from 'react-hot-toast';
 import { generateSalePDF, generateSaleImage } from '../utils/pdfGenerator';
 
@@ -62,38 +63,6 @@ const safeFormatCurrency = (value: any): string => {
 
 
 // 🔢 FUNÇÃO PARA OBTER PRÓXIMO NÚMERO DE VENDA DO BANCO
-const getNextSaleNumber = async (): Promise<number> => {
-  try {
-    console.log('🔢 Obtendo próximo número de venda do banco...');
-    
-    // Buscar todas as vendas ordenadas por saleNumber decrescente
-    const response = await lumi.entities.sales.list({
-      limit: 1,
-      sort: { saleNumber: -1 }
-    });
-    
-    if (response.list && response.list.length > 0 && response.list[0].saleNumber) {
-      const lastNumber = response.list[0].saleNumber;
-      console.log(`📊 Último número no banco: ${lastNumber}`);
-      return lastNumber + 1;
-    }
-    
-    // Se não houver vendas com saleNumber, contar total de vendas
-    const allSalesResponse = await lumi.entities.sales.list({
-      limit: 10000
-    });
-    const totalSales = allSalesResponse.list?.length || 0;
-    console.log(`📊 Total de vendas no banco: ${totalSales}`);
-    return totalSales + 1;
-    
-  } catch (error) {
-    console.error('❌ Erro ao obter próximo número de venda:', error);
-    // Fallback: usar timestamp
-    return Date.now();
-  }
-};
-
-// Função para formatar data para input date
 const formatDateForInput = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -127,7 +96,7 @@ const PublicSales: React.FC = () => {
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<'em_andamento' | 'finalizada'>('em_andamento');
+  const [selectedStatus, setSelectedStatus] = useState<'em_aberto' | 'concluida'>('em_aberto');
   const [showFormatModal, setShowFormatModal] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'jpg'>('pdf');
   const [pendingSaleData, setPendingSaleData] = useState<any>(null);
@@ -557,184 +526,110 @@ const PublicSales: React.FC = () => {
   const confirmSubmit = async () => {
     setShowStatusModal(false);
     setLoading(true);
-    
+
     try {
-      console.log('📊 Calculando totais...');
       const { subtotal, total } = calculateTotals();
-      
-      console.log('🔢 Gerando número sequencial da venda...');
-      const saleNumber = await getNextSaleNumber();
-      console.log(`✅ Número da venda gerado: ${saleNumber}`);
-      
-      console.log('📝 Preparando dados da venda...');
-      
-      // Converter data selecionada para ISO string com hora 00:00:00
+
       const selectedDate = new Date(formData.saleDate + 'T00:00:00');
       const saleDateISO = selectedDate.toISOString();
-      
-      console.log('📅 Data selecionada pelo usuário:', formData.saleDate);
-      console.log('📅 Data convertida para ISO:', saleDateISO);
-      
-      const saleData = {
-        saleNumber: saleNumber, // 🔢 NÚMERO SEQUENCIAL PERMANENTE
+
+      const salePayload = {
         customerId: selectedCustomer?._id || null,
         customerName: formData.customerName,
         customerCpfCnpj: formData.customerCpfCnpj,
         customerAddress: formData.customerAddress,
         customerPhone: formData.customerPhone,
         customerType: customerType,
-        products: saleProducts,
-        date: saleDateISO, // Usar 'date' com a data selecionada pelo usuário
-        saleDate: saleDateISO, // Manter compatibilidade
+        customer: {
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          email: selectedCustomer?.email || '',
+          address: formData.customerAddress,
+        },
+        items: saleProducts.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: safeNumber(item.unitPrice),
+          total: safeNumber(item.totalPrice),
+        })),
+        products: saleProducts.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: safeNumber(item.unitPrice),
+          total: safeNumber(item.totalPrice),
+        })),
+        date: saleDateISO,
+        saleDate: saleDateISO,
         deliveryDate: formData.deliveryDate || null,
         subtotalValue: subtotal,
         discountValue: safeNumber(formData.discountValue),
         additionalValue: safeNumber(formData.additionalValue),
+        total: total,
         totalValue: total,
         paymentMethod: formData.paymentMethod,
         status: selectedStatus,
         observations: formData.observations,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
       };
 
-      console.log('💾 Dados da venda preparados:', {
-        ...saleData,
-        products: saleData.products.length + ' produtos'
-      });
+      const createdSale = await createSale(salePayload);
 
-      console.log('📤 Enviando venda para o banco de dados...');
-      const newSale = await lumi.entities.sales.create(saleData);
-      console.log('✅ Venda criada com sucesso:', newSale._id);
+      const downloadData = {
+        ...createdSale,
+        id: createdSale._id || createdSale.id,
+        saleNumber: createdSale.saleNumber,
+        date: createdSale.saleDate || createdSale.date,
+        items: (createdSale.items || salePayload.items).map((item: any) => ({
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: safeNumber(item.unitPrice),
+          totalPrice: safeNumber(item.total),
+          total: safeNumber(item.total),
+          observations: item.observations || '',
+        })),
+        total: safeNumber(createdSale.total, total),
+        totalValue: safeNumber(createdSale.totalValue, total),
+        customer: {
+          name: createdSale.customer?.name || formData.customerName,
+          phone: createdSale.customer?.phone || formData.customerPhone,
+          cpfCnpj: formData.customerCpfCnpj,
+          address: createdSale.customer?.address || formData.customerAddress,
+        },
+        observations: createdSale.observations || formData.observations,
+        status: createdSale.status || selectedStatus,
+      };
 
-      console.log('📦 Atualizando estoque dos produtos...');
-      let stockUpdateErrors = [];
-      
-      for (let i = 0; i < saleProducts.length; i++) {
-        const item = saleProducts[i];
-        console.log(`📦 Atualizando produto ${i + 1}/${saleProducts.length}: ${item.productName}`);
-        
-        try {
-          const product = products.find((p) => p._id === item.productId);
-          if (product) {
-            const newStock = Math.max(0, safeNumber(product.stockQuantity) - item.quantity);
-            console.log(`📦 Estoque ${product.name}: ${product.stockQuantity} → ${newStock}`);
-            
-            await lumi.entities.products.update(product._id, {
-              stockQuantity: newStock,
-              updatedAt: new Date().toISOString()
-            });
-            console.log(`✅ Estoque atualizado: ${product.name}`);
-          } else {
-            console.warn(`⚠️ Produto não encontrado para atualização: ${item.productId}`);
-            stockUpdateErrors.push(`Produto ${item.productName} não encontrado`);
-          }
-        } catch (stockError) {
-          console.error(`❌ Erro ao atualizar estoque do produto ${item.productName}:`, stockError);
-          stockUpdateErrors.push(`Erro ao atualizar ${item.productName}: ${stockError.message}`);
-        }
-      }
+      setPendingSaleData(downloadData);
+      setShowFormatModal(true);
 
-      if (stockUpdateErrors.length > 0) {
-        console.warn('⚠️ Alguns produtos tiveram problemas na atualização de estoque:', stockUpdateErrors);
-        toast.error(`Venda registrada, mas houve problemas na atualização de estoque: ${stockUpdateErrors.join(', ')}`, {
-          duration: 6000,
-        });
-      } else {
-        console.log('✅ Todos os estoques atualizados com sucesso');
-      }
-
-      console.log('📄 Preparando dados da venda para download...');
-      try {
-        // Preparar dados para o PDF/JPG
-        const downloadData = {
-          ...newSale,
-          saleNumber: saleNumber, // 🔢 INCLUIR NÚMERO DA VENDA
-          id: newSale._id,
-          date: saleData.saleDate,
-          items: saleProducts.map(item => ({
-            productName: item.productName,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            total: item.totalPrice, // Alias para compatibilidade
-            observations: item.observations || ''
-          })),
-          total: total,
-          totalValue: total,
-          customer: selectedCustomer ? {
-            name: selectedCustomer.name,
-            phone: selectedCustomer.phone,
-            cpfCnpj: selectedCustomer.cpfCnpj,
-            address: selectedCustomer.address
-          } : null,
-          observations: formData.observations,
-          status: selectedStatus
-        };
-
-        console.log('📄 Dados preparados:', {
-          id: downloadData.id,
-          saleNumber: downloadData.saleNumber,
-          itemsCount: downloadData.items.length,
-          total: downloadData.total,
-          customerName: downloadData.customer?.name || formData.customerName
-        });
-
-        // Guardar dados e mostrar modal de escolha de formato
-        setPendingSaleData(downloadData);
-        setShowFormatModal(true);
-        
-      } catch (error) {
-        console.error('❌ Erro ao preparar dados:', error);
-        toast.error('Venda registrada, mas houve erro ao preparar download: ' + error.message, {
-          duration: 5000,
-        });
-      }
-
-      console.log('🧹 Limpando formulário...');
-      // Limpar formulário
       setFormData({
         customerName: '',
         customerCpfCnpj: '',
         customerAddress: '',
         customerPhone: '',
-        saleDate: formatDateForInput(new Date()), // Resetar para data atual
+        saleDate: formatDateForInput(new Date()),
         deliveryDate: '',
         discountValue: 0,
         additionalValue: 0,
         paymentMethod: 'dinheiro',
-        observations: ''
+        observations: '',
       });
       setSaleProducts([]);
       setSelectedCustomer(null);
       setCustomerType('registered');
       setCustomerSearch('');
       setProductSearch('');
-      setSelectedStatus('em_andamento');
-      
-      // Limpar venda salva do localStorage
+      setSelectedStatus('em_aberto');
+
       clearSavedSale();
 
-      console.log('🔄 Recarregando produtos para atualizar estoque...');
-      // Recarregar produtos para atualizar estoque
       await fetchProducts();
-      console.log('✅ Processo completo finalizado com sucesso');
-      
-      // Notificação simples de sucesso
-      toast.success('Venda concluída com sucesso!');
-
-    } catch (error) {
-      console.error('❌ ERRO CRÍTICO no processo de venda:', error);
-      console.error('❌ Stack trace:', error.stack);
-      console.error('❌ Detalhes do erro:', {
-        message: error.message,
-        name: error.name,
-        cause: error.cause
-      });
-      
-      toast.error(`Erro ao registrar venda: ${error.message}`);
+      toast.success('Venda registrada com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao registrar venda:', error);
+      toast.error(`Erro ao registrar venda: ${error?.message || 'Falha inesperada'}`);
     } finally {
-      console.log('🏁 Finalizando processo (removendo loading)');
       setLoading(false);
     }
   };
@@ -1632,24 +1527,24 @@ const PublicSales: React.FC = () => {
             <div className="space-y-3 mb-6">
               <button
                 type="button"
-                onClick={() => setSelectedStatus('em_andamento')}
+                onClick={() => setSelectedStatus('em_aberto')}
                 className={`w-full p-4 rounded-lg border-2 transition-all ${
-                  selectedStatus === 'em_andamento'
+                  selectedStatus === 'em_aberto'
                     ? 'border-yellow-500 bg-yellow-50'
                     : 'border-gray-300 hover:border-yellow-300'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className="font-semibold text-gray-800">Em Andamento</div>
+                    <div className="font-semibold text-gray-800">Em aberto</div>
                     <div className="text-sm text-gray-600">Venda ainda não foi concluída</div>
                   </div>
                   <div className={`w-5 h-5 rounded-full border-2 ${
-                    selectedStatus === 'em_andamento'
+                    selectedStatus === 'em_aberto'
                       ? 'bg-yellow-500 border-yellow-500'
                       : 'border-gray-300'
                   }`}>
-                    {selectedStatus === 'em_andamento' && (
+                    {selectedStatus === 'em_aberto' && (
                       <svg className="w-full h-full text-white" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -1660,9 +1555,9 @@ const PublicSales: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setSelectedStatus('finalizada')}
+                onClick={() => setSelectedStatus('concluida')}
                 className={`w-full p-4 rounded-lg border-2 transition-all ${
-                  selectedStatus === 'finalizada'
+                  selectedStatus === 'concluida'
                     ? 'border-green-500 bg-green-50'
                     : 'border-gray-300 hover:border-green-300'
                 }`}
@@ -1673,11 +1568,11 @@ const PublicSales: React.FC = () => {
                     <div className="text-sm text-gray-600">Venda já foi concluída</div>
                   </div>
                   <div className={`w-5 h-5 rounded-full border-2 ${
-                    selectedStatus === 'finalizada'
+                    selectedStatus === 'concluida'
                       ? 'bg-green-500 border-green-500'
                       : 'border-gray-300'
                   }`}>
-                    {selectedStatus === 'finalizada' && (
+                    {selectedStatus === 'concluida' && (
                       <svg className="w-full h-full text-white" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>

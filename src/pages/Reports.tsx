@@ -4,6 +4,7 @@ import {BarChart3, TrendingUp, Calendar, DollarSign, Package, Users, FileText, D
 import { generateSalesReportPDF, generateProductStockReportPDF, generateCustomerReportPDF } from '../utils/reportGenerator'
 
 import { lumi } from '../lib/lumi'
+import { listSales as listSalesApi, normalizeSaleStatus } from '../lib/sales'
 import toast from 'react-hot-toast'
 
 interface Product {
@@ -115,49 +116,41 @@ const Reports: React.FC = () => {
   // 🔥 FUNÇÃO CRÍTICA: Carregar vendas do Supabase
   const loadSalesFromDatabase = async () => {
     try {
-      console.log('🔄 CARREGANDO VENDAS DO Supabase PARA RELATÓRIOS...')
-      const response = await lumi.entities.sales.list({
-        sort: { date: -1 }
-      })
-      
-      if (!response || !response.list) {
-        console.warn('⚠️ RESPOSTA INVÁLIDA DO Supabase:', response)
-        return []
-      }
+      const response = await listSalesApi()
 
-      const salesData = response.list.map((sale: any) => ({
+      const salesData = (response || []).map((sale: any) => ({
         _id: sale._id || sale.id || '',
-        id: sale._id || sale.id || '',
+        id: sale.id || sale._id || '',
         active: sale.active !== false,
         customer: {
-          name: safeString(sale.customer?.name || sale.customerName, 'Cliente não informado'),
+          name: safeString(sale.customer?.name || sale.customerName, 'Cliente nao informado'),
           phone: safeString(sale.customer?.phone || sale.customerPhone, ''),
           email: safeString(sale.customer?.email || sale.customerEmail, ''),
-          address: safeString(sale.customer?.address || sale.customerAddress, '')
+          address: safeString(sale.customer?.address || sale.customerAddress, ''),
         },
-        items: Array.isArray(sale.items) ? sale.items.map((item: any) => ({
-          productId: safeString(item.productId, ''),
-          productName: safeString(item.productName || item.name, 'Produto não informado'),
-          quantity: safeNumber(item.quantity, 1),
-          unitPrice: safeNumber(item.unitPrice || item.price, 0),
-          total: safeNumber(item.total || (item.quantity * item.unitPrice), 0)
-        })) : [],
-        total: safeNumber(sale.total || sale.totalValue, 0),
-        date: sale.date || sale.createdAt || new Date().toISOString(),
-        status: safeString(sale.status, 'Pendente'),
-        observations: safeString(sale.observations || sale.notes, '')
+        items: Array.isArray(sale.items)
+          ? sale.items.map((item: any) => ({
+              productId: safeString(item.productId, ''),
+              productName: safeString(item.productName || item.name, 'Produto nao informado'),
+              quantity: safeNumber(item.quantity, 1),
+              unitPrice: safeNumber(item.unitPrice || item.price, 0),
+              total: safeNumber(item.total, 0),
+            }))
+          : [],
+        total: safeNumber(sale.total ?? sale.totalValue, 0),
+        date: sale.date || sale.saleDate || new Date().toISOString(),
+        status: normalizeSaleStatus(sale.status),
+        observations: safeString(sale.observations || ''),
       }))
 
-      console.log('✅ VENDAS CARREGADAS PARA RELATÓRIOS:', salesData.length)
       return salesData
-      
     } catch (error) {
-      console.error('❌ ERRO AO CARREGAR VENDAS PARA RELATÓRIOS:', error)
+      console.error('Erro ao carregar vendas para relatorios:', error)
       throw error
     }
   }
 
-  // 🔥 FUNÇÃO CRÍTICA: Carregar produtos do Supabase
+  // Carregar produtos do Supabase
   const loadProductsFromDatabase = async () => {
     try {
       console.log('🔄 CARREGANDO PRODUTOS DO Supabase PARA RELATÓRIOS...')
@@ -244,61 +237,65 @@ const Reports: React.FC = () => {
     loadInitialData()
   }, [])
 
-  // Filtrar vendas por período
-  const filteredSales = sales.filter(sale => {
+  // Filtrar vendas por periodo
+  const filteredSales = sales.filter((sale) => {
     if (sale.active === false) return false
-    
+
     if (!dateRange.start && !dateRange.end) return true
-    
+
     const saleDate = new Date(sale.date)
     const startDate = dateRange.start ? new Date(dateRange.start) : null
     const endDate = dateRange.end ? new Date(dateRange.end) : null
-    
+
     if (startDate && saleDate < startDate) return false
     if (endDate && saleDate > endDate) return false
-    
+
     return true
   })
 
-  // Cálculos de estatísticas
-  const totalRevenue = filteredSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0)
-  const totalSales = filteredSales.length
+  const eligibleSales = filteredSales.filter((sale) => normalizeSaleStatus(sale.status) === 'concluida')
+  const openSalesCount = filteredSales.filter((sale) => normalizeSaleStatus(sale.status) === 'em_aberto').length
+  const canceledSalesCount = filteredSales.filter((sale) => normalizeSaleStatus(sale.status) === 'cancelada').length
+
+  const totalRevenue = eligibleSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0)
+  const totalSales = eligibleSales.length
   const averageSaleValue = totalSales > 0 ? totalRevenue / totalSales : 0
-  const activeProducts = products.filter(p => p.active !== false)
-  const activeCustomers = customers.filter(c => c.active !== false)
+  const activeProducts = products.filter((product) => product.active !== false)
+  const activeCustomers = customers.filter((customer) => customer.active !== false)
   const totalProducts = activeProducts.length
   const totalCustomers = activeCustomers.length
 
-  // Produtos mais vendidos
-  const productSales = filteredSales.reduce((acc, sale) => {
+  const productSales = eligibleSales.reduce((acc, sale) => {
     if (sale?.items && Array.isArray(sale.items)) {
-      sale.items.forEach(item => {
+      sale.items.forEach((item) => {
         if (item?.productId && item?.productName) {
           if (!acc[item.productId]) {
             acc[item.productId] = {
               name: item.productName,
               quantity: 0,
-              revenue: 0
+              revenue: 0,
             }
           }
+
           acc[item.productId].quantity += safeNumber(item.quantity, 0)
           acc[item.productId].revenue += safeNumber(item.total, 0)
         }
       })
     }
+
     return acc
   }, {} as Record<string, { name: string; quantity: number; revenue: number }>)
 
   const topProducts = Object.entries(productSales)
-    .sort(([,a], [,b]) => (b?.quantity || 0) - (a?.quantity || 0))
+    .sort(([, a], [, b]) => (b?.quantity || 0) - (a?.quantity || 0))
     .slice(0, 10)
 
-  // Vendas por mês
-  const salesByMonth = filteredSales.reduce((acc, sale) => {
+  const salesByMonth = eligibleSales.reduce((acc, sale) => {
     const month = new Date(sale.date).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })
     if (!acc[month]) {
       acc[month] = { count: 0, revenue: 0 }
     }
+
     acc[month].count += 1
     acc[month].revenue += safeNumber(sale.total, 0)
     return acc
@@ -321,12 +318,12 @@ const Reports: React.FC = () => {
           name: data.name,
           totalSold: data.quantity,
           revenue: data.revenue,
-          salesCount: filteredSales.filter(sale => 
+          salesCount: eligibleSales.filter(sale => 
             sale.items?.some(item => item.productId === id)
           ).length
         })),
         customerHistory: activeCustomers.map(customer => {
-          const customerSales = filteredSales.filter(sale => 
+          const customerSales = eligibleSales.filter(sale => 
             sale.customer?.name === customer.name
           )
           const totalSpent = customerSales.reduce((sum, sale) => sum + safeNumber(sale.total, 0), 0)
@@ -359,7 +356,7 @@ const Reports: React.FC = () => {
           }
         }),
         expenses: [],
-        sales: filteredSales.map(sale => ({
+        sales: eligibleSales.map(sale => ({
           _id: sale._id,
           totalValue: sale.total,
           createdAt: sale.date,
@@ -429,13 +426,7 @@ const Reports: React.FC = () => {
               >
                 Tentar Novamente
               </button>
-              <button 
-                onClick={() => window.location.reload()}
-                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-              >
-                Recarregar Página
-              </button>
-            </div>
+</div>
           </div>
         </div>
       </div>
@@ -464,10 +455,10 @@ const Reports: React.FC = () => {
                 📊 Dados dos Relatórios - Supabase Conectado
               </p>
               <p className="text-green-600 text-sm">
-                {totalSales} vendas • R$ {safeFormatCurrency(totalRevenue)} em receita • {totalCustomers} clientes • {totalProducts} produtos
+                {totalSales} vendas concluidas | R$ {safeFormatCurrency(totalRevenue)} em receita | {totalCustomers} clientes | {totalProducts} produtos
               </p>
               <p className="text-green-500 text-xs">
-                Período: {dateRange.start || 'Início'} até {dateRange.end || 'Hoje'} • {filteredSales.length} vendas filtradas
+                Periodo: {dateRange.start || 'Inicio'} ate {dateRange.end || 'Hoje'} | {filteredSales.length} vendas (abertas: {openSalesCount}, canceladas: {canceledSalesCount})
               </p>
             </div>
           </div>
@@ -539,7 +530,7 @@ const Reports: React.FC = () => {
               <strong>Clientes:</strong> {totalCustomers} cadastrados
             </div>
             <div>
-              <strong>Filtrado:</strong> {filteredSales.length} vendas
+              <strong>Filtrado:</strong> {filteredSales.length} vendas (concluidas: {totalSales})
             </div>
           </div>
         </div>
@@ -560,7 +551,7 @@ const Reports: React.FC = () => {
             <BarChart3 className="w-8 h-8 text-green-600 mb-3" />
             <span className="text-sm font-semibold text-green-800 mb-1">Relatório de Vendas</span>
             <span className="text-xs text-green-600 text-center">
-              {filteredSales.length} vendas<br />
+              {totalSales} vendas concluidas<br />
               R$ {safeFormatCurrency(totalRevenue)} em receita
             </span>
           </button>
@@ -596,7 +587,7 @@ const Reports: React.FC = () => {
             <div>
               <p className="font-medium text-yellow-800 mb-2">📋 Informações sobre os relatórios:</p>
               <ul className="space-y-1 text-yellow-700">
-                <li>• <strong>Relatório de Vendas:</strong> Considera o período selecionado nos filtros acima ({filteredSales.length} vendas)</li>
+                <li>• <strong>Relatório de Vendas:</strong> Considera o período selecionado nos filtros acima ({totalSales} vendas concluidas)</li>
                 <li>• <strong>Relatório de Produtos:</strong> Lista todos os produtos ativos no sistema ({totalProducts} produtos)</li>
                 <li>• <strong>Relatório de Clientes:</strong> Lista todos os clientes cadastrados ({totalCustomers} clientes) com histórico de compras</li>
                 <li>• <strong>Dados em tempo real:</strong> Todos os relatórios são gerados com dados atualizados do Supabase</li>
@@ -633,9 +624,9 @@ const Reports: React.FC = () => {
           </div>
           <div className="space-y-1">
             <h3 className="text-xl sm:text-2xl font-bold text-gray-800">{totalSales}</h3>
-            <p className="text-xs sm:text-sm text-gray-600 font-medium">Total de Vendas</p>
+            <p className="text-xs sm:text-sm text-gray-600 font-medium">Vendas Concluidas</p>
             <p className="text-xs text-gray-500">
-              {filteredSales.length} no período selecionado
+              {filteredSales.length} no periodo ({openSalesCount} em aberto, {canceledSalesCount} canceladas)
             </p>
           </div>
         </div>
@@ -652,7 +643,7 @@ const Reports: React.FC = () => {
             </h3>
             <p className="text-xs sm:text-sm text-gray-600 font-medium">Ticket Médio</p>
             <p className="text-xs text-gray-500">
-              Baseado em {filteredSales.length} vendas
+              Baseado em {totalSales} vendas concluidas
             </p>
           </div>
         </div>
