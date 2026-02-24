@@ -1,21 +1,27 @@
-import React, { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
-  CreditCard,
+  Shield,
   LayoutGrid,
+  LogOut,
   Menu,
   Package,
+  Settings,
   ShoppingCart,
   UserSquare2,
   Users,
   X,
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import type { Permission } from '../lib/auth'
+import { resolveDefaultRoute } from '../lib/routes'
 
 type NavItem = {
   path: string
   label: string
   icon: React.ReactNode
+  permission: Permission
 }
 
 const navItems: NavItem[] = [
@@ -23,36 +29,49 @@ const navItems: NavItem[] = [
     path: '/dashboard',
     label: 'Dashboard',
     icon: <LayoutGrid size={16} />,
+    permission: 'dashboard',
   },
   {
     path: '/vendas',
     label: 'Nova Venda',
     icon: <ShoppingCart size={16} />,
+    permission: 'vender',
   },
   {
     path: '/clientes',
     label: 'Clientes',
     icon: <UserSquare2 size={16} />,
+    permission: 'clientes',
   },
   {
     path: '/produtos',
     label: 'Produtos',
     icon: <Package size={16} />,
+    permission: 'produtos',
   },
   {
     path: '/vendas-lista',
     label: 'Vendas',
     icon: <Users size={16} />,
+    permission: 'ver_vendas',
   },
   {
     path: '/relatorios',
     label: 'Relatorios',
     icon: <BarChart3 size={16} />,
+    permission: 'relatorios',
   },
   {
     path: '/pagamentos',
-    label: 'Pagamentos',
-    icon: <CreditCard size={16} />,
+    label: 'Configuracoes',
+    icon: <Settings size={16} />,
+    permission: 'configuracoes',
+  },
+  {
+    path: '/usuarios',
+    label: 'Usuarios',
+    icon: <Shield size={16} />,
+    permission: 'usuarios',
   },
 ]
 
@@ -74,12 +93,28 @@ const mobileNavClassName = ({ isActive }: { isActive: boolean }) =>
 
 const Layout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false)
+  const navigate = useNavigate()
+  const { user, hasPermission, logout } = useAuth()
+
+  const visibleItems = useMemo(
+    () => navItems.filter((item) => hasPermission(item.permission)),
+    [hasPermission],
+  )
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
+  const goHome = () => {
+    navigate(resolveDefaultRoute(user), { replace: true })
+  }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#2a1240_0%,_#12071e_38%,_#07030d_100%)]">
       <header className="sticky top-0 z-40 border-b border-fuchsia-900/40 bg-[#10071a]/92 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="min-w-0 flex items-center gap-3 sm:gap-4">
+          <button onClick={goHome} className="min-w-0 flex items-center gap-3 text-left sm:gap-4">
             <img
               src={brandLogoUrl}
               alt="Logomarca Cecilia Cama Mesa e Banho"
@@ -94,6 +129,20 @@ const Layout: React.FC = () => {
                 Sistema de Gestao Comercial
               </h1>
             </div>
+          </button>
+
+          <div className="hidden items-center gap-3 lg:flex">
+            <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2 text-right">
+              <p className="text-xs text-fuchsia-200">Usuario ativo</p>
+              <p className="text-sm font-semibold text-fuchsia-50">{user?.name || user?.username || '-'}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3.5 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/25"
+            >
+              <LogOut size={16} />
+              Sair
+            </button>
           </div>
 
           <button
@@ -119,7 +168,7 @@ const Layout: React.FC = () => {
             </div>
 
             <nav className="space-y-2">
-              {navItems.map((item) => (
+              {visibleItems.map((item) => (
                 <NavLink key={item.path} to={item.path} end className={desktopNavClassName}>
                   {item.icon}
                   <span>{item.label}</span>
@@ -135,8 +184,13 @@ const Layout: React.FC = () => {
           <section className="min-w-0 sales-theme">
             {menuOpen && (
               <div className="mb-4 rounded-2xl border border-fuchsia-900/40 bg-[#12081e]/95 p-4 shadow-[0_0_30px_rgba(219,39,119,0.14)] lg:hidden">
+                <div className="mb-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2">
+                  <p className="text-xs text-fuchsia-200">Usuario ativo</p>
+                  <p className="text-sm font-semibold text-fuchsia-50">{user?.name || user?.username || '-'}</p>
+                </div>
+
                 <div className="grid gap-2">
-                  {navItems.map((item) => (
+                  {visibleItems.map((item) => (
                     <NavLink
                       key={item.path}
                       to={item.path}
@@ -149,6 +203,14 @@ const Layout: React.FC = () => {
                     </NavLink>
                   ))}
                 </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3.5 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/25"
+                >
+                  <LogOut size={16} />
+                  Sair
+                </button>
               </div>
             )}
 

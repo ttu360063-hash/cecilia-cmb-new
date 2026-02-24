@@ -1,5 +1,4 @@
-
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiRequest } from './auth'
 
 type EntityName = 'products' | 'sales' | 'customers' | 'payment_methods' | 'expenses'
 type EntityRecord = Record<string, any>
@@ -26,75 +25,44 @@ type LumiLikeClient = {
   entities: Record<string, EntityApi>
 }
 
-type DbRow = {
-  id: string
-  data: EntityRecord
-  created_at: string | null
-  updated_at: string | null
+const ENTITY_ALIAS: Record<string, EntityName> = {
+  products: 'products',
+  sales: 'sales',
+  customers: 'customers',
+  customer: 'customers',
+  clientes: 'customers',
+  cliente: 'customers',
+  payment_methods: 'payment_methods',
+  expenses: 'expenses',
 }
 
-const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || '').trim()
-const SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
-
-const supabase: SupabaseClient | null =
-  SUPABASE_URL && SUPABASE_ANON_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-          persistSession: false,
-        },
-      })
-    : null
-
-const nowIso = () => new Date().toISOString()
-
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
-
-const assertSupabase = (): SupabaseClient => {
-  if (!supabase) {
-    throw new Error(
-      'Supabase nao configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
-    )
+const normalizeEntityName = (entityName: string): EntityName => {
+  const normalized = ENTITY_ALIAS[entityName.toLowerCase()]
+  if (!normalized) {
+    throw new Error(`Entidade n?o suportada: ${entityName}`)
   }
-  return supabase
+  return normalized
 }
-
-const toNumber = (value: any, fallback: number = 0): number => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : fallback
-}
-
-const generateId = (): string => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  const random = Math.random().toString(36).slice(2, 10)
-  return `${Date.now()}_${random}`
-}
-
-const normalizeProduct = (record: EntityRecord): EntityRecord => {
-  const unitPrice = toNumber(record.unitPrice ?? record.price, 0)
-  const stockQuantity = toNumber(record.stockQuantity ?? record.stock, 0)
-
-  return {
-    ...record,
-    unitPrice,
-    stockQuantity,
-    price: unitPrice,
-    stock: stockQuantity,
-    active: record.active !== false,
-  }
-}
-
-const normalizeCustomer = (record: EntityRecord): EntityRecord => ({
-  ...record,
-  active: record.active !== false,
-})
 
 const normalizePaymentMethod = (record: EntityRecord): EntityRecord => ({
   ...record,
   active: record.active !== false,
   order: Number.isFinite(Number(record.order)) ? Number(record.order) : 0,
 })
+
+const normalizeProduct = (record: EntityRecord): EntityRecord => {
+  const unitPrice = Number(record.unitPrice ?? record.price ?? 0)
+  const stockQuantity = Number(record.stockQuantity ?? record.stock ?? 0)
+
+  return {
+    ...record,
+    unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
+    stockQuantity: Number.isFinite(stockQuantity) ? stockQuantity : 0,
+    price: Number.isFinite(unitPrice) ? unitPrice : 0,
+    stock: Number.isFinite(stockQuantity) ? stockQuantity : 0,
+    active: record.active !== false,
+  }
+}
 
 const normalizeSale = (record: EntityRecord): EntityRecord => {
   const items = Array.isArray(record.items)
@@ -103,14 +71,14 @@ const normalizeSale = (record: EntityRecord): EntityRecord => {
       ? record.products
       : []
 
-  const total = toNumber(record.total ?? record.totalValue, 0)
+  const total = Number(record.total ?? record.totalValue ?? 0)
 
   return {
     ...record,
     items,
     products: Array.isArray(record.products) ? record.products : items,
-    total,
-    totalValue: record.totalValue ?? total,
+    total: Number.isFinite(total) ? total : 0,
+    totalValue: Number.isFinite(total) ? total : 0,
     active: record.active !== false,
   }
 }
@@ -119,302 +87,76 @@ const normalizeByEntity = (entity: EntityName, record: EntityRecord): EntityReco
   switch (entity) {
     case 'products':
       return normalizeProduct(record)
-    case 'customers':
-      return normalizeCustomer(record)
-    case 'payment_methods':
-      return normalizePaymentMethod(record)
     case 'sales':
       return normalizeSale(record)
+    case 'payment_methods':
+      return normalizePaymentMethod(record)
     default:
-      return record
+      return { ...record, active: record.active !== false }
   }
 }
 
-const compareValues = (a: any, b: any): number => {
-  if (a === b) return 0
-  if (a === undefined || a === null) return 1
-  if (b === undefined || b === null) return -1
+const createEntityApi = (entityName: string): EntityApi => {
+  const entity = normalizeEntityName(entityName)
 
-  if (typeof a === 'boolean' || typeof b === 'boolean') {
-    return Number(Boolean(a)) - Number(Boolean(b))
-  }
+  return {
+    list: async (options: ListOptions = {}) => {
+      const response = await apiRequest<{ ok: true; data: ListResponse }>('/api/entities', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'list',
+          entity,
+          options,
+        }),
+      })
 
-  const numberA = Number(a)
-  const numberB = Number(b)
-  if (Number.isFinite(numberA) && Number.isFinite(numberB)) {
-    return numberA - numberB
-  }
-
-  const dateA = Date.parse(String(a))
-  const dateB = Date.parse(String(b))
-  if (!Number.isNaN(dateA) && !Number.isNaN(dateB)) {
-    return dateA - dateB
-  }
-
-  return String(a).localeCompare(String(b), 'pt-BR', { sensitivity: 'base' })
-}
-
-const applyFilter = (records: EntityRecord[], filter?: Record<string, any>): EntityRecord[] => {
-  if (!filter || Object.keys(filter).length === 0) {
-    return records
-  }
-
-  return records.filter((record) =>
-    Object.entries(filter).every(([key, expected]) => record[key] === expected),
-  )
-}
-
-const applySort = (records: EntityRecord[], sort?: Record<string, number>): EntityRecord[] => {
-  if (!sort || Object.keys(sort).length === 0) {
-    return records
-  }
-
-  const entries = Object.entries(sort)
-  return [...records].sort((left, right) => {
-    for (const [field, orderRaw] of entries) {
-      const order = orderRaw === -1 ? -1 : 1
-      const compared = compareValues(left[field], right[field])
-      if (compared !== 0) {
-        return compared * order
+      return {
+        list: (response.data.list || []).map((record) => normalizeByEntity(entity, record)),
+        total: response.data.total || 0,
       }
-    }
-    return 0
-  })
-}
-
-const applyLimit = (records: EntityRecord[], limit?: number): EntityRecord[] => {
-  if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
-    return records
-  }
-  return records.slice(0, limit)
-}
-
-const toApiRecord = (entity: EntityName, row: DbRow): EntityRecord =>
-  normalizeByEntity(entity, {
-    ...(row.data || {}),
-    _id: row.id,
-    id: row.id,
-    createdAt: row.data?.createdAt ?? row.created_at ?? nowIso(),
-    updatedAt: row.data?.updatedAt ?? row.updated_at ?? nowIso(),
-  })
-
-const toDbPayload = (record: EntityRecord): EntityRecord => {
-  const payload = { ...record }
-  delete payload._id
-  delete payload.id
-  return payload
-}
-
-const getPaymentMethodSeed = (): EntityRecord[] => {
-  const timestamp = nowIso()
-  return [
-    {
-      _id: 'pm_dinheiro',
-      id: 'pm_dinheiro',
-      name: 'Dinheiro',
-      value: 'dinheiro',
-      active: true,
-      order: 1,
-      createdAt: timestamp,
-      updatedAt: timestamp,
     },
-    {
-      _id: 'pm_pix',
-      id: 'pm_pix',
-      name: 'PIX',
-      value: 'pix',
-      active: true,
-      order: 2,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-    {
-      _id: 'pm_cartao_debito',
-      id: 'pm_cartao_debito',
-      name: 'Cartao Debito',
-      value: 'cartao_debito',
-      active: true,
-      order: 3,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-    {
-      _id: 'pm_cartao_credito',
-      id: 'pm_cartao_credito',
-      name: 'Cartao Credito',
-      value: 'cartao_credito',
-      active: true,
-      order: 4,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-    {
-      _id: 'pm_transferencia',
-      id: 'pm_transferencia',
-      name: 'Transferencia',
-      value: 'transferencia',
-      active: true,
-      order: 5,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-    {
-      _id: 'pm_boleto',
-      id: 'pm_boleto',
-      name: 'Boleto',
-      value: 'boleto',
-      active: true,
-      order: 6,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-  ]
-}
 
-const ensurePaymentMethodSeed = async (client: SupabaseClient) => {
-  const { count, error } = await client
-    .from('payment_methods')
-    .select('id', { count: 'exact', head: true })
+    create: async (data: Partial<EntityRecord>) => {
+      const response = await apiRequest<{ ok: true; data: EntityRecord }>('/api/entities', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'create',
+          entity,
+          data,
+        }),
+      })
 
-  if (error) {
-    throw error
-  }
-  if ((count || 0) > 0) {
-    return
-  }
+      return normalizeByEntity(entity, response.data)
+    },
 
-  const seedRows = getPaymentMethodSeed().map((item) => ({
-    id: item._id,
-    data: toDbPayload(item),
-    created_at: item.createdAt,
-    updated_at: item.updatedAt,
-  }))
+    update: async (id: string, updates: Partial<EntityRecord>) => {
+      const response = await apiRequest<{ ok: true; data: EntityRecord }>('/api/entities', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'update',
+          entity,
+          id,
+          data: updates,
+        }),
+      })
 
-  const { error: insertError } = await client
-    .from('payment_methods')
-    .upsert(seedRows, { onConflict: 'id' })
+      return normalizeByEntity(entity, response.data)
+    },
 
-  if (insertError) {
-    throw insertError
+    delete: async (id: string) => {
+      const response = await apiRequest<{ ok: true; data: { success: boolean } }>('/api/entities', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'delete',
+          entity,
+          id,
+        }),
+      })
+
+      return response.data
+    },
   }
 }
-
-const createEntityApi = (entity: EntityName): EntityApi => ({
-  list: async (options: ListOptions = {}) => {
-    const client = assertSupabase()
-
-    if (entity === 'payment_methods') {
-      await ensurePaymentMethodSeed(client)
-    }
-
-    const { data, error } = await client
-      .from(entity)
-      .select('id,data,created_at,updated_at')
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    const rawRecords = ((data || []) as DbRow[]).map((row) => toApiRecord(entity, row))
-    const filtered = applyFilter(rawRecords, options.filter)
-    const sorted = applySort(filtered, options.sort)
-    const limited = applyLimit(sorted, options.limit)
-
-    return {
-      list: clone(limited),
-      total: filtered.length,
-    }
-  },
-
-  create: async (data: Partial<EntityRecord>) => {
-    const client = assertSupabase()
-    const id = String(data._id ?? data.id ?? '').trim() || generateId()
-    const timestamp = nowIso()
-
-    const normalized = normalizeByEntity(entity, {
-      active: data.active ?? true,
-      createdAt: data.createdAt ?? timestamp,
-      updatedAt: data.updatedAt ?? timestamp,
-      ...data,
-      _id: id,
-      id,
-    })
-
-    const row = {
-      id,
-      data: toDbPayload(normalized),
-      created_at: normalized.createdAt ?? timestamp,
-      updated_at: normalized.updatedAt ?? timestamp,
-    }
-
-    const { error } = await client.from(entity).upsert(row, { onConflict: 'id' })
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    return clone(normalized)
-  },
-
-  update: async (id: string, updates: Partial<EntityRecord>) => {
-    const client = assertSupabase()
-    const targetId = String(id || '').trim()
-    if (!targetId) {
-      throw new Error('ID invalido para atualizacao')
-    }
-
-    const { data: currentRow, error: currentError } = await client
-      .from(entity)
-      .select('id,data,created_at,updated_at')
-      .eq('id', targetId)
-      .maybeSingle()
-
-    if (currentError) {
-      throw new Error(currentError.message)
-    }
-    if (!currentRow) {
-      throw new Error(`Registro nao encontrado para ID ${targetId}`)
-    }
-
-    const current = toApiRecord(entity, currentRow as DbRow)
-    const updated = normalizeByEntity(entity, {
-      ...current,
-      ...updates,
-      _id: targetId,
-      id: targetId,
-      createdAt: current.createdAt ?? nowIso(),
-      updatedAt: updates.updatedAt ?? nowIso(),
-    })
-
-    const row = {
-      id: targetId,
-      data: toDbPayload(updated),
-      created_at: updated.createdAt ?? nowIso(),
-      updated_at: updated.updatedAt ?? nowIso(),
-    }
-
-    const { error } = await client.from(entity).upsert(row, { onConflict: 'id' })
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    return clone(updated)
-  },
-
-  delete: async (id: string) => {
-    const client = assertSupabase()
-    const targetId = String(id || '').trim()
-    if (!targetId) {
-      throw new Error('ID invalido para exclusao')
-    }
-
-    const { error } = await client.from(entity).delete().eq('id', targetId)
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    return { success: true }
-  },
-})
 
 const customersEntity = createEntityApi('customers')
 
